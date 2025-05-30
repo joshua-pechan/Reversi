@@ -2,9 +2,6 @@
 #include "Player.h"
 #include "Board.h"
 
-Player::Player(BoardValue color) : playerColor(color) {}
-Player::~Player() {}
-
 bool Player::MouseHandler(Board& board, HWND hWnd, RECT clientRect, int x, int y) {
 	cellWidth = (clientRect.right - Board::borderX * 2) / Board::MATRIX_SIZE;
 	cellHeight = (clientRect.bottom - Board::borderY * 2) / Board::MATRIX_SIZE;
@@ -46,6 +43,10 @@ std::vector<std::pair<int, int>> Player::GetValidMoves(const Board& board) {
 }
 
 bool Player::ValidCell(const Board& board, int x, int y) const {
+    return ValidCell(board, x, y, playerColor);
+}
+
+bool Player::ValidCell(const Board& board, int x, int y, BoardValue color) const {
     if (x < 0 || x >= Board::MATRIX_SIZE || y < 0 || y >= Board::MATRIX_SIZE) { return false; }
 
     if (board.boardState[x][y] != BoardValue::EMPTY) { return false; }
@@ -60,7 +61,7 @@ bool Player::ValidCell(const Board& board, int x, int y) const {
 
             if (currentValue == BoardValue::EMPTY) { break; }
 
-            if (currentValue == playerColor) {
+            if (currentValue == color) {
                 if (foundOpponent) { return true; }
                 break;
             }
@@ -75,7 +76,11 @@ bool Player::ValidCell(const Board& board, int x, int y) const {
 }
 
 void Player::FlipPieces(Board& board, int x, int y) {
-    board.boardState[x][y] = playerColor;
+    return FlipPieces(board, x, y, playerColor);
+}
+
+void Player::FlipPieces(Board& board, int x, int y, BoardValue color) {
+    board.boardState[x][y] = color;
 
     for (auto& dir : directions) {
         int dx = dir[0], dy = dir[1];

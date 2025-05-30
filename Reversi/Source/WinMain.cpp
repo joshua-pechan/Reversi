@@ -75,6 +75,9 @@ void MainWindow::GameOver() {
     if (response == IDYES) {
         board.reset();
         player1Turn = true;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
         InvalidateRect(hWnd, NULL, TRUE);
     } else {
         PostQuitMessage(0);
@@ -131,15 +134,19 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                 case ID_BOARD_NUMBERED:
                     board.useNumberedBackground = true;
                     break;
-                case ID_DIFFICULTY_EASY:
-                    difficulty = Difficulty::EASY;
+                case ID_DIFFICULTY_HEURISTIC:
+                    difficulty = Difficulty::HEURISTIC;
+                    board.reset();
                     break;
-                case ID_DIFFICULTY_MEDIUM:
-                    difficulty = Difficulty::MEDIUM;
+                case ID_DIFFICULTY_MINIMAX:
+                    difficulty = Difficulty::MINIMAX;
+                    board.reset();
                     break;
-                case ID_DIFFICULTY_HARD:
-                    difficulty = Difficulty::HARD;
-                    break;
+                //case ID_DIFFICULTY_LEARNING:
+                //    difficulty = Difficulty::LEARNING;
+                //    MessageBox(nullptr, L"Using learning", L"Error", MB_OK);
+                //    board.reset();
+                //    break;
             }
 
             InvalidateRect(hWnd, NULL, true);
@@ -172,7 +179,7 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                         InvalidateRect(hWnd, NULL, true);
                         UpdateWindow(hWnd);
 
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                        std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
                         // AI move
                         if (player2.HasValidMove(board)) {
@@ -180,6 +187,14 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                             InvalidateRect(hWnd, NULL, true);
                             UpdateWindow(hWnd);
                         }
+                    }
+                }
+                else {
+                    if (player2.HasValidMove(board)) {
+                        // AI move
+                        player2.move(board, hWnd, difficulty);
+                        InvalidateRect(hWnd, NULL, true);
+                        UpdateWindow(hWnd);
                     }
                 }
             } else {
@@ -204,7 +219,7 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
     return 0;
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     MainWindow app(hInstance);
     if (!app.Init(nCmdShow)) {
         return 0;

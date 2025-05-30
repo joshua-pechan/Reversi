@@ -18,6 +18,8 @@ private:
 public:
     Board();
     ~Board();
+    Board duplicateBoard() const;
+
     void reset();
     void LoadResources(HINSTANCE hInstance, LPCWSTR backgroundID, LPCWSTR numberedBackgroundID);
     void Draw(HDC hdc, RECT clientRect);

@@ -15,9 +15,9 @@
 #define ID_BOARD_DEFAULT                40003
 #define ID_BOARD_NUMBERED               40004
 
-#define ID_DIFFICULTY_EASY              40005
-#define ID_DIFFICULTY_MEDIUM            40006
-#define ID_DIFFICULTY_HARD              40007
+#define ID_DIFFICULTY_HEURISTIC         40005
+#define ID_DIFFICULTY_MINIMAX           40006
+#define ID_DIFFICULTY_LEARNING          40007
 
 // Next default values for new objects
 // 

@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "Player.h"
 #include "Board.h"
 
 Board::Board() : background(nullptr), cellWidth(), cellHeight() {
@@ -7,6 +8,18 @@ Board::Board() : background(nullptr), cellWidth(), cellHeight() {
 
 Board::~Board() {
     if (background) { DeleteObject(background); }
+}
+
+Board Board::duplicateBoard() const {
+    Board newBoard;
+
+    for (int row = 0; row < Board::MATRIX_SIZE; row++) {
+        for (int col = 0; col < Board::MATRIX_SIZE; col++) {
+            newBoard.boardState[row][col] = boardState[row][col];
+        }
+    }
+
+    return newBoard;
 }
 
 void Board::reset() {
@@ -87,7 +100,6 @@ void Board::DrawPiece(HDC hdcMem, COLORREF color, int indexX, int indexY) {
 
     HPEN hPen = (HPEN)SelectObject(hdcMem, GetStockObject(NULL_PEN));
 
-    PAINTSTRUCT ps;
     Ellipse(hdcMem, x + paddingX + offsetX, y + paddingY + offsetY, x + cellWidth - paddingX + offsetX, y + cellHeight - paddingY + offsetY);
 
     SelectObject(hdcMem, oldBrush);
