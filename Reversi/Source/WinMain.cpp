@@ -182,6 +182,38 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                 case ID_UNDO:
                     Undo();
                     break;
+                case ID_PLAYER_COLOR_BLACK:
+                    // Player chooses to play as Black
+                    player1.playerColor = BoardValue::BLACK;
+                    player2.playerColor = BoardValue::WHITE;
+                    board.reset();
+                    moveHistory.clear();
+                    player1Turn = (player1.playerColor == BoardValue::BLACK);
+                    break;
+                case ID_PLAYER_COLOR_WHITE:
+                    // Player chooses to play as White
+                    player1.playerColor = BoardValue::WHITE;
+                    player2.playerColor = BoardValue::BLACK;
+                    board.reset();
+                    moveHistory.clear();
+                    player1Turn = (player1.playerColor == BoardValue::BLACK);
+
+                    // If singleplayer and AI is black, have AI make the opening move immediately
+                    if (singlePlayer && player2.playerColor == BoardValue::BLACK && player2.HasValidMove(board)) {
+                        MoveResult aiResult = player2.move(board, hWnd, difficulty);
+                        if (aiResult.valid) {
+                            MoveRecord aiRecord;
+                            aiRecord.row = aiResult.row;
+                            aiRecord.col = aiResult.col;
+                            aiRecord.color = player2.playerColor;
+                            aiRecord.flipped = aiResult.flipped;
+                            moveHistory.push_back(aiRecord);
+
+                            // After AI plays black, it's player's (white) turn
+                            player1Turn = (player1.playerColor == BoardValue::BLACK);
+                        }
+                    }
+                    break;
                 //case ID_DIFFICULTY_LEARNING:
                 //    difficulty = Difficulty::LEARNING;
                 //    MessageBox(nullptr, L"Using learning", L"Error", MB_OK);
