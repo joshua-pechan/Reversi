@@ -28,6 +28,7 @@ public:
     ~Board();
 
     Board duplicateBoard() const;
+    static BoardValue OpponentColor(BoardValue c);
 
     std::vector<std::pair<int, int>> ApplyMove(int row, int col, BoardValue color);
     std::vector<std::pair<int, int>> ApplyMove(HWND hWnd, int row, int col, BoardValue color);
