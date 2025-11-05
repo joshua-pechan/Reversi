@@ -19,8 +19,6 @@ private:
 	};
 	const int minimaxLevelDepth = 30;
 
-	uint64_t HashBoard(const Board& board) const;
-
 	std::unordered_map<uint64_t, TTEntry> transpositionTable;
 public:
 	AIPlayer(BoardValue color) : Player(color) {}

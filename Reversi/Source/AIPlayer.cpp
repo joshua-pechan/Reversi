@@ -3,19 +3,6 @@
 #include "AIPlayer.h"
 #include "Board.h"
 
-uint64_t AIPlayer::HashBoard(const Board& board) const {
-    uint64_t hash = 0;
-    for (int x = 0; x < 8; ++x) {
-        for (int y = 0; y < 8; ++y) {
-            if (board.boardState[x][y] == BoardValue::BLACK)
-                hash ^= Board::zobristTable[x][y][0];
-            else if (board.boardState[x][y] == BoardValue::WHITE)
-                hash ^= Board::zobristTable[x][y][1];
-        }
-    }
-    return hash;
-}
-
 std::vector<std::pair<int, int>> AIPlayer::GetValidMoves(const Board& board) {
     return GetValidMoves(board, playerColor);
 }
@@ -225,7 +212,7 @@ std::pair<int, int> AIPlayer::ChooseMinimax(Board& board, const std::vector<std:
     }
     std::sort(scored.begin(), scored.end(), [](const auto& a, const auto& b) {
         return a.second > b.second;
-        });
+    });
 
     const unsigned int numThreads = std::min(std::thread::hardware_concurrency(),
         static_cast<unsigned int>(scored.size()));
