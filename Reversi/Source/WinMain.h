@@ -32,7 +32,18 @@ private:
 
     bool player1Turn = true;
     bool singlePlayer = true;
-    Difficulty difficulty = Difficulty::HEURISTIC;
+    Difficulty difficulty = Difficulty::MINIMAX;
+
+    struct MoveRecord {
+        int row;
+        int col;
+        BoardValue color;
+        std::vector<std::pair<int, int>> flipped;
+    };
+
+    std::vector<MoveRecord> moveHistory;
+
+    void Undo();
 };
 
 inline Player player1(BoardValue::BLACK);
