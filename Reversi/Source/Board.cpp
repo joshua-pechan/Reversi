@@ -45,8 +45,7 @@ Board Board::duplicateBoard() const {
     return newBoard;
 }
 
-
-static inline BoardValue OpponentColor(BoardValue c) {
+BoardValue Board::OpponentColor(BoardValue c) {
     return (c == BoardValue::BLACK) ? BoardValue::WHITE : BoardValue::BLACK;
 }
 

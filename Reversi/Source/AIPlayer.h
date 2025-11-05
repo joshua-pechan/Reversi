@@ -7,16 +7,17 @@ struct TTEntry {
 
 class AIPlayer : public Player {
 private:
-	const int tileWeights[8][8] = {
-		{ 120, -20,  20,   5,   5,  20, -20, 120 },
-		{ -20, -40,  -5,  -5,  -5,  -5, -40, -20 },
-		{  20,  -5,  15,   3,   3,  15,  -5,  20 },
-		{   5,  -5,   3,   3,   3,   3,  -5,   5 },
-		{   5,  -5,   3,   3,   3,   3,  -5,   5 },
-		{  20,  -5,  15,   3,   3,  15,  -5,  20 },
-		{ -20, -40,  -5,  -5,  -5,  -5, -40, -20 },
-		{ 120, -20,  20,   5,   5,  20, -20, 120 }
+	int tileWeights[8][8] = {
+		{ 100, -20,  10,   5,   5,  10, -20, 100},
+		{ -20, -40,  -5,  -5,  -5,  -5, -40, -20},
+		{  10,  -5,   5,   1,   1,   5,  -5,  10},
+		{   5,  -5,   1,   0,   0,   1,  -5,   5},
+		{   5,  -5,   1,   0,   0,   1,  -5,   5},
+		{  10,  -5,   5,   1,   1,   5,  -5,  10},
+		{ -20, -40,  -5,  -5,  -5,  -5, -40, -20},
+		{ 100, -20,  10,   5,   5,  10, -20, 100}
 	};
+
 	const int minimaxLevelDepth = 30;
 
 	std::unordered_map<uint64_t, TTEntry> transpositionTable;
@@ -33,7 +34,10 @@ public:
 
 	// minimax
 	int GetTurnMultiplier(BoardValue currentTurn);
+	int CountStableDiscs(const Board& board, BoardValue color);
 	int EvaluateBoard(const Board& board);
+
+	std::vector<std::pair<int, int>> OrderMoves(const Board& board, const std::vector<std::pair<int, int>>& moves, BoardValue color);
 
 	int Minimax(Board& board, int depth, int alpha, int beta, BoardValue currentTurn);
 	std::pair<int, int> ChooseMinimax(Board& board, const std::vector<std::pair<int, int>>& validMoves);
