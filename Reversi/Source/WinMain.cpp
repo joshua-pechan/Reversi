@@ -11,6 +11,12 @@ MainWindow::MainWindow(HINSTANCE hInst)
 MainWindow::~MainWindow() {}
 
 bool MainWindow::Init(int nCmdShow) {
+    FILE* fp;
+    AllocConsole();
+    freopen_s(&fp, "CONOUT$", "w", stdout);
+    freopen_s(&fp, "CONOUT$", "w", stderr);
+    freopen_s(&fp, "CONIN$", "r", stdin);
+
     WNDCLASSEX wcex = { sizeof(WNDCLASSEX) };
     wcex.style = CS_HREDRAW | CS_VREDRAW;
     wcex.lpfnWndProc = MainWindow::StaticWndProc;
@@ -56,6 +62,24 @@ int MainWindow::Run() {
     return static_cast<int>(msg.wParam);
 }
 
+void MainWindow::Undo() {
+    if (moveHistory.empty()) {
+        MessageBox(hWnd, L"Nothing to undo!", L"Undo", MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+
+    int movesToUndo = singlePlayer ? 2 : 1;
+    for (int i = 0; i < movesToUndo && !moveHistory.empty(); i++) {
+        MoveRecord& lastMove = moveHistory.back();
+        board.UndoMove(lastMove.row, lastMove.col, lastMove.color, lastMove.flipped);
+        moveHistory.pop_back();
+        player1Turn = !player1Turn;
+    }
+
+    InvalidateRect(hWnd, NULL, TRUE);
+    UpdateWindow(hWnd);
+}
+
 void MainWindow::GameOver() {
     int whiteCount = 0, blackCount = 0;
     board.CountPieces(whiteCount, blackCount);
@@ -74,6 +98,7 @@ void MainWindow::GameOver() {
     int response = MessageBox(hWnd, buffer, L"Game Over", MB_YESNO | MB_ICONQUESTION);
     if (response == IDYES) {
         board.reset();
+        moveHistory.clear();
         player1Turn = true;
 
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -102,6 +127,14 @@ LRESULT CALLBACK MainWindow::StaticWndProc(HWND hWnd, UINT message, WPARAM wPara
     }
 }
 
+static std::wstring DifficultyToWString(Difficulty d) {
+    switch (d) {
+    case Difficulty::HEURISTIC: return L"Heuristic";
+    case Difficulty::MINIMAX:   return L"Minimax";
+    default:                    return L"Unknown";
+    }
+}
+
 LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_CREATE:
@@ -123,10 +156,12 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                 case ID_PLAYER_SINGLEPLAYER:
                     singlePlayer = true;
                     board.reset();
+                    moveHistory.clear();
                     break;
                 case ID_PLAYER_MULTIPLAYER:
                     singlePlayer = false;
                     board.reset();
+                    moveHistory.clear();
                     break;
                 case ID_BOARD_DEFAULT:
                     board.useNumberedBackground = false;
@@ -137,10 +172,15 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                 case ID_DIFFICULTY_HEURISTIC:
                     difficulty = Difficulty::HEURISTIC;
                     board.reset();
+                    moveHistory.clear();
                     break;
                 case ID_DIFFICULTY_MINIMAX:
                     difficulty = Difficulty::MINIMAX;
                     board.reset();
+                    moveHistory.clear();
+                    break;
+                case ID_UNDO:
+                    Undo();
                     break;
                 //case ID_DIFFICULTY_LEARNING:
                 //    difficulty = Difficulty::LEARNING;
@@ -160,6 +200,21 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
             GetClientRect(hWnd, &rect);
             board.Draw(hdc, rect);
 
+            // Draw difficulty in top-right corner
+            std::wstring diffText = DifficultyToWString(difficulty);
+
+            int oldBkMode = SetBkMode(hdc, TRANSPARENT);
+
+            RECT textRect;
+            textRect.top = 8;
+            textRect.bottom = textRect.top + 24;
+            textRect.right = rect.right - 20;
+            textRect.left = textRect.right - 200;
+
+            DrawTextW(hdc, diffText.c_str(), -1, &textRect, DT_SINGLELINE | DT_RIGHT | DT_VCENTER);
+
+            SetBkMode(hdc, oldBkMode);
+
             if (!player1.HasValidMove(board) && !player2.HasValidMove(board)) {
                 GameOver();
             }
@@ -173,37 +228,53 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
             GetClientRect(hWnd, &rect);
 
             if (singlePlayer) {
-                // Player 1 move
                 if (player1.HasValidMove(board)) {
-                    if (player1.MouseHandler(board, hWnd, rect, LOWORD(lParam), HIWORD(lParam))) {
-                        InvalidateRect(hWnd, NULL, true);
-                        UpdateWindow(hWnd);
+                    auto moveResult = player1.MouseHandler(board, hWnd, rect, LOWORD(lParam), HIWORD(lParam));
+
+                    if (moveResult.valid) {
+                        // Record player move
+                        MoveRecord record;
+                        record.row = moveResult.row;
+                        record.col = moveResult.col;
+                        record.color = player1.playerColor;
+                        record.flipped = moveResult.flipped;
+
+                        moveHistory.push_back(record);
 
                         std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-                        // AI move
                         if (player2.HasValidMove(board)) {
-                            player2.move(board, hWnd, difficulty);
-                            InvalidateRect(hWnd, NULL, true);
-                            UpdateWindow(hWnd);
+                            auto aiMoveResult = player2.move(board, hWnd, difficulty);
+
+                            if (aiMoveResult.valid) {
+                                MoveRecord aiRecord;
+                                aiRecord.row = aiMoveResult.row;
+                                aiRecord.col = aiMoveResult.col;
+                                aiRecord.color = player2.playerColor;
+                                aiRecord.flipped = aiMoveResult.flipped;
+                                moveHistory.push_back(aiRecord);
+                            }
                         }
                     }
                 }
-                else {
-                    if (player2.HasValidMove(board)) {
-                        // AI move
-                        player2.move(board, hWnd, difficulty);
-                        InvalidateRect(hWnd, NULL, true);
-                        UpdateWindow(hWnd);
-                    }
-                }
-            } else {
+            }
+            else {
                 Player& currentPlayer = player1Turn ? player1 : player2;
+                auto moveResult = currentPlayer.MouseHandler(board, hWnd, rect, LOWORD(lParam), HIWORD(lParam));
 
-                bool switchTurn = !currentPlayer.HasValidMove(board)
-                    || currentPlayer.MouseHandler(board, hWnd, rect, LOWORD(lParam), HIWORD(lParam));
-            
-                if (switchTurn) player1Turn = !player1Turn;
+                if (moveResult.valid) {
+                    MoveRecord record;
+                    record.row = moveResult.row;
+                    record.col = moveResult.col;
+                    record.color = currentPlayer.playerColor;
+                    record.flipped = moveResult.flipped;
+                    moveHistory.push_back(record);
+
+                    player1Turn = !player1Turn;
+                }
+                else if (!currentPlayer.HasValidMove(board)) {
+                    player1Turn = !player1Turn;
+                }
             }
 
             break;

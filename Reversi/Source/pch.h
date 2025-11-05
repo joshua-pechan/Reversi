@@ -7,7 +7,13 @@
 #include <chrono>
 #include <thread>
 #include <limits>
+#include <array>
+#include <random>
+#include <unordered_map>
 #include <algorithm>
+#include <iostream>
+#include <future>
+#include <random>
 
 #include "../resource.h"
 
@@ -28,7 +34,7 @@ enum class BoardValue {
 enum class Difficulty {
 	HEURISTIC,
 	MINIMAX,
-	LEARNING
+	//LEARNING
 };
 
 const int directions[8][2] = {

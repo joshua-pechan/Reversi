@@ -7,6 +7,10 @@ public:
     static constexpr int borderY = 8;
 
     bool useNumberedBackground = false;
+
+    static std::array<std::array<std::array<uint64_t, 2>, 8>, 8> zobristTable;
+
+    uint64_t currentHash = 0;
 private:
     HBITMAP background;
     HBITMAP backgroundNumbered;
@@ -15,11 +19,19 @@ private:
 
     int cellWidth;
     int cellHeight;
+
+    void InitZobrist();
+
+    void UpdateHash(int x, int y, BoardValue oldValue, BoardValue newValue);
 public:
     Board();
     ~Board();
+
     Board duplicateBoard() const;
 
+    std::vector<std::pair<int, int>> ApplyMove(int row, int col, BoardValue color);
+    std::vector<std::pair<int, int>> ApplyMove(HWND hWnd, int row, int col, BoardValue color);
+    void UndoMove(int row, int col, BoardValue color, const std::vector<std::pair<int, int>>& flipped);
     void reset();
     void LoadResources(HINSTANCE hInstance, LPCWSTR backgroundID, LPCWSTR numberedBackgroundID);
     void Draw(HDC hdc, RECT clientRect);

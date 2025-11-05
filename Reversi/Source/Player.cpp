@@ -2,21 +2,23 @@
 #include "Player.h"
 #include "Board.h"
 
-bool Player::MouseHandler(Board& board, HWND hWnd, RECT clientRect, int x, int y) {
-	cellWidth = (clientRect.right - Board::borderX * 2) / Board::MATRIX_SIZE;
+MoveResult Player::MouseHandler(Board& board, HWND hWnd, RECT clientRect, int x, int y) {
+    MoveResult result = { false, -1, -1, {} };
+
+    cellWidth = (clientRect.right - Board::borderX * 2) / Board::MATRIX_SIZE;
 	cellHeight = (clientRect.bottom - Board::borderY * 2) / Board::MATRIX_SIZE;
 	
 	int indexX = x / cellWidth;
 	int indexY = y / cellHeight;
 
-	if (ValidCell(board, indexX, indexY)) {
-        FlipPieces(board, indexX, indexY);
-		InvalidateRect(hWnd, NULL, true);
-		UpdateWindow(hWnd);
-		return true;
-	}
+    if (ValidCell(board, indexX, indexY, playerColor)) {
+        result.valid = true;
+        result.row = indexX;
+        result.col = indexY;
+        result.flipped = board.ApplyMove(hWnd, indexX, indexY, playerColor);
+    }
 
-	return false;
+    return result;
 }
 
 bool Player::HasValidMove(const Board& board) const {
@@ -73,35 +75,4 @@ bool Player::ValidCell(const Board& board, int x, int y, BoardValue color) const
     }
 
     return false;
-}
-
-void Player::FlipPieces(Board& board, int x, int y) {
-    return FlipPieces(board, x, y, playerColor);
-}
-
-void Player::FlipPieces(Board& board, int x, int y, BoardValue color) {
-    board.boardState[x][y] = color;
-
-    for (auto& dir : directions) {
-        int dx = dir[0], dy = dir[1];
-        int nx = x + dx, ny = y + dy;
-        std::vector<std::pair<int, int>> piecesToFlip;
-
-        while (nx >= 0 && nx < Board::MATRIX_SIZE && ny >= 0 && ny < Board::MATRIX_SIZE) {
-            if (board.boardState[nx][ny] == BoardValue::EMPTY) {
-                break;
-            }
-            if (board.boardState[nx][ny] == playerColor) {
-                if (!piecesToFlip.empty()) {
-                    for (auto& p : piecesToFlip) {
-                        board.boardState[p.first][p.second] = playerColor;
-                    }
-                }
-                break;
-            }
-            piecesToFlip.push_back({ nx, ny });
-            nx += dx;
-            ny += dy;
-        }
-    }
 }

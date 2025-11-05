@@ -19,6 +19,8 @@
 #define ID_DIFFICULTY_MINIMAX           40006
 #define ID_DIFFICULTY_LEARNING          40007
 
+#define ID_UNDO							40008
+
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
