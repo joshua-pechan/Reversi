@@ -17,6 +17,10 @@ bool MainWindow::Init(int nCmdShow) {
     freopen_s(&fp, "CONOUT$", "w", stderr);
     freopen_s(&fp, "CONIN$", "r", stdin);
 
+    hConsole = GetConsoleWindow();
+
+    if (!consoleVisible) { ShowWindow(hConsole, SW_HIDE); }
+
     WNDCLASSEX wcex = { sizeof(WNDCLASSEX) };
     wcex.style = CS_HREDRAW | CS_VREDRAW;
     wcex.lpfnWndProc = MainWindow::StaticWndProc;
@@ -62,6 +66,30 @@ int MainWindow::Run() {
     return static_cast<int>(msg.wParam);
 }
 
+void MainWindow::TriggerAIMove() {
+    if (singlePlayer && !player1Turn && player2.HasValidMove(board)) {
+        InvalidateRect(hWnd, NULL, TRUE);
+        UpdateWindow(hWnd);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+        MoveResult aiResult = player2.move(board, hWnd, difficulty);
+        if (aiResult.valid) {
+            MoveRecord aiRecord;
+            aiRecord.row = aiResult.row;
+            aiRecord.col = aiResult.col;
+            aiRecord.color = player2.playerColor;
+            aiRecord.flipped = aiResult.flipped;
+            moveHistory.push_back(aiRecord);
+
+            player1Turn = true;
+
+            InvalidateRect(hWnd, NULL, TRUE);
+            UpdateWindow(hWnd);
+        }
+    }
+}
+
 void MainWindow::Undo() {
     if (moveHistory.empty()) {
         MessageBox(hWnd, L"Nothing to undo!", L"Undo", MB_OK | MB_ICONINFORMATION);
@@ -78,6 +106,8 @@ void MainWindow::Undo() {
 
     InvalidateRect(hWnd, NULL, TRUE);
     UpdateWindow(hWnd);
+
+    TriggerAIMove();
 }
 
 void MainWindow::GameOver() {
@@ -135,6 +165,13 @@ static std::wstring DifficultyToWString(Difficulty d) {
     }
 }
 
+void MainWindow::ToggleConsole() {
+    if (hConsole) {
+        consoleVisible = !consoleVisible;
+        ShowWindow(hConsole, consoleVisible ? SW_SHOW : SW_HIDE);
+    }
+}
+
 LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_CREATE:
@@ -153,6 +190,10 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 
         case WM_COMMAND:
             switch (LOWORD(wParam)) {
+                case ID_VIEW_CONSOLE:
+                    ToggleConsole();
+                    break;
+
                 case ID_PLAYER_SINGLEPLAYER:
                     singlePlayer = true;
                     board.reset();
@@ -162,25 +203,6 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                     singlePlayer = false;
                     board.reset();
                     moveHistory.clear();
-                    break;
-                case ID_BOARD_DEFAULT:
-                    board.useNumberedBackground = false;
-                    break;
-                case ID_BOARD_NUMBERED:
-                    board.useNumberedBackground = true;
-                    break;
-                case ID_DIFFICULTY_HEURISTIC:
-                    difficulty = Difficulty::HEURISTIC;
-                    board.reset();
-                    moveHistory.clear();
-                    break;
-                case ID_DIFFICULTY_MINIMAX:
-                    difficulty = Difficulty::MINIMAX;
-                    board.reset();
-                    moveHistory.clear();
-                    break;
-                case ID_UNDO:
-                    Undo();
                     break;
                 case ID_PLAYER_COLOR_BLACK:
                     // Player chooses to play as Black
@@ -198,21 +220,29 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                     moveHistory.clear();
                     player1Turn = (player1.playerColor == BoardValue::BLACK);
 
-                    // If singleplayer and AI is black, have AI make the opening move immediately
-                    if (singlePlayer && player2.playerColor == BoardValue::BLACK && player2.HasValidMove(board)) {
-                        MoveResult aiResult = player2.move(board, hWnd, difficulty);
-                        if (aiResult.valid) {
-                            MoveRecord aiRecord;
-                            aiRecord.row = aiResult.row;
-                            aiRecord.col = aiResult.col;
-                            aiRecord.color = player2.playerColor;
-                            aiRecord.flipped = aiResult.flipped;
-                            moveHistory.push_back(aiRecord);
+                    TriggerAIMove();
+                    break;
 
-                            // After AI plays black, it's player's (white) turn
-                            player1Turn = (player1.playerColor == BoardValue::BLACK);
-                        }
-                    }
+                case ID_BOARD_DEFAULT:
+                    board.useNumberedBackground = false;
+                    break;
+                case ID_BOARD_NUMBERED:
+                    board.useNumberedBackground = true;
+                    break;
+
+                case ID_DIFFICULTY_HEURISTIC:
+                    difficulty = Difficulty::HEURISTIC;
+                    board.reset();
+                    moveHistory.clear();
+                    break;
+                case ID_DIFFICULTY_MINIMAX:
+                    difficulty = Difficulty::MINIMAX;
+                    board.reset();
+                    moveHistory.clear();
+                    break;
+
+                case ID_UNDO:
+                    Undo();
                     break;
                 //case ID_DIFFICULTY_LEARNING:
                 //    difficulty = Difficulty::LEARNING;
@@ -273,20 +303,8 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 
                         moveHistory.push_back(record);
 
-                        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-                        if (player2.HasValidMove(board)) {
-                            auto aiMoveResult = player2.move(board, hWnd, difficulty);
-
-                            if (aiMoveResult.valid) {
-                                MoveRecord aiRecord;
-                                aiRecord.row = aiMoveResult.row;
-                                aiRecord.col = aiMoveResult.col;
-                                aiRecord.color = player2.playerColor;
-                                aiRecord.flipped = aiMoveResult.flipped;
-                                moveHistory.push_back(aiRecord);
-                            }
-                        }
+                        player1Turn = false;
+                        TriggerAIMove();
                     }
                 }
             }

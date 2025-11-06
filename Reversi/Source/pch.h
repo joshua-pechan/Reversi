@@ -13,32 +13,36 @@
 #include <algorithm>
 #include <iostream>
 #include <future>
-#include <random>
 
 #include "../resource.h"
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 800
-
 #define MAX_NAME_STRING 256
 #define HInstance() GetModuleHandle(NULL)
 
-#define INF std::numeric_limits<int>::max()
+constexpr int INF = std::numeric_limits<int>::max();
 
-enum class BoardValue {
-	EMPTY,
-	BLACK,
-	WHITE,
+enum class BoardValue { EMPTY, BLACK, WHITE };
+enum class Difficulty { HEURISTIC, MINIMAX };
+
+inline const int directions[8][2] = {
+    {-1,  1}, { 1,  1}, { 0,  1},
+    {-1,  0},           { 1,  0},
+    {-1, -1}, { 0, -1}, { 1, -1},
 };
 
-enum class Difficulty {
-	HEURISTIC,
-	MINIMAX,
-	//LEARNING
+constexpr int DEPTH = 64;
+
+inline const int tileWeights[8][8] = {
+    { 100, -20,  10,   5,   5,  10, -20, 100},
+    { -20, -40,  -5,  -5,  -5,  -5, -40, -20},
+    {  10,  -5,   5,   1,   1,   5,  -5,  10},
+    {   5,  -5,   1,   0,   0,   1,  -5,   5},
+    {   5,  -5,   1,   0,   0,   1,  -5,   5},
+    {  10,  -5,   5,   1,   1,   5,  -5,  10},
+    { -20, -40,  -5,  -5,  -5,  -5, -40, -20},
+    { 100, -20,  10,   5,   5,  10, -20, 100}
 };
 
-const int directions[8][2] = {
-	{-1,  1}, { 1,  1}, { 0,  1},
-	{-1,  0},           { 1,  0},
-	{-1, -1}, { 0, -1}, { 1, -1},
-};
+inline bool consoleVisible = true;

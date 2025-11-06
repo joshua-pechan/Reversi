@@ -9,21 +9,21 @@
 #define IDB_BOARDNUMBERED               105
 #define IDR_MENU                        108
 
-#define ID_PLAYER_SINGLEPLAYER          40001
-#define ID_PLAYER_MULTIPLAYER           40002
+#define ID_VIEW_CONSOLE					40001
 
-#define ID_BOARD_DEFAULT                40003
-#define ID_BOARD_NUMBERED               40004
+#define ID_PLAYER_SINGLEPLAYER          40002
+#define ID_PLAYER_MULTIPLAYER           40003
+#define ID_PLAYER_COLOR_BLACK			40004
+#define ID_PLAYER_COLOR_WHITE			40005
 
-#define ID_DIFFICULTY_HEURISTIC         40005
-#define ID_DIFFICULTY_MINIMAX           40006
-#define ID_DIFFICULTY_LEARNING          40007
+#define ID_BOARD_DEFAULT                40006
+#define ID_BOARD_NUMBERED               40007
 
-#define ID_UNDO							40008
+#define ID_DIFFICULTY_HEURISTIC         40008
+#define ID_DIFFICULTY_MINIMAX           40009
+#define ID_DIFFICULTY_LEARNING          40010
 
-// Add color selection IDs
-#define ID_PLAYER_COLOR_BLACK			40009
-#define ID_PLAYER_COLOR_WHITE			40010
+#define ID_UNDO							40011
 
 // Next default values for new objects
 // 

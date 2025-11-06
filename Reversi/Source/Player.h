@@ -1,4 +1,7 @@
 #pragma once
+#include "pch.h"
+#include "Board.h"
+
 class Board;
 
 struct MoveResult {

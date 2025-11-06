@@ -1,5 +1,3 @@
-#include "pch.h"
-#include "Player.h"
 #include "Board.h"
 
 std::array<std::array<std::array<uint64_t, 2>, 8>, 8> Board::zobristTable;
@@ -112,6 +110,7 @@ std::vector<std::pair<int, int>> Board::ApplyMove(HWND hWnd, int row, int col, B
     const std::vector<std::pair<int, int>> totalFlipped = ApplyMove(row, col, color);
     InvalidateRect(hWnd, NULL, true);
     UpdateWindow(hWnd);
+    if (consoleVisible) PrintBoard();
     return totalFlipped;
 }
 
@@ -224,4 +223,27 @@ void Board::CountPieces(int& whiteCount, int& blackCount) const {
             else if (boardState[i][j] == BoardValue::BLACK) ++blackCount;
         }
     }
+}
+
+void Board::PrintBoard() const {
+    std::cout << "  ";
+    for (int col = 0; col < MATRIX_SIZE; col++) {
+        std::cout << col << " ";
+    }
+    std::cout << "\n";
+
+    // Print from bottom to top (reverse array order)
+    for (int col = 0; col < MATRIX_SIZE; col++) {
+        std::cout << col << " ";
+
+        for (int row = 0; row < MATRIX_SIZE; row++) {
+            char c = '.';
+            if (boardState[row][col] == BoardValue::WHITE) c = 'W';
+            else if (boardState[row][col] == BoardValue::BLACK) c = 'B';
+            std::cout << c << " ";
+        }
+        std::cout << "\n";
+    }
+
+    std::cout << "\n";
 }

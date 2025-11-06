@@ -1,4 +1,7 @@
 #pragma once
+#include "pch.h"
+#include "Player.h"
+
 struct TTEntry {
 	int depth;
 	int score;
@@ -7,19 +10,6 @@ struct TTEntry {
 
 class AIPlayer : public Player {
 private:
-	int tileWeights[8][8] = {
-		{ 100, -20,  10,   5,   5,  10, -20, 100},
-		{ -20, -40,  -5,  -5,  -5,  -5, -40, -20},
-		{  10,  -5,   5,   1,   1,   5,  -5,  10},
-		{   5,  -5,   1,   0,   0,   1,  -5,   5},
-		{   5,  -5,   1,   0,   0,   1,  -5,   5},
-		{  10,  -5,   5,   1,   1,   5,  -5,  10},
-		{ -20, -40,  -5,  -5,  -5,  -5, -40, -20},
-		{ 100, -20,  10,   5,   5,  10, -20, 100}
-	};
-
-	const int minimaxLevelDepth = 64;
-
 	std::unordered_map<uint64_t, TTEntry> transpositionTable;
 public:
 	AIPlayer(BoardValue color) : Player(color) {}

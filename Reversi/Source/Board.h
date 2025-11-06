@@ -1,4 +1,6 @@
 #pragma once
+#include "pch.h"
+#include "Player.h"
 
 class Board {
 public:
@@ -38,5 +40,6 @@ public:
     void Draw(HDC hdc, RECT clientRect);
     void DrawPiece(HDC hdcMem, COLORREF color, int indexX, int indexY);
     void CountPieces(int& whiteCount, int& blackCount) const;
+    void PrintBoard() const;
     BoardValue boardState[MATRIX_SIZE][MATRIX_SIZE];
 };

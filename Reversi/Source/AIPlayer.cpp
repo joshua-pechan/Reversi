@@ -1,5 +1,4 @@
 #include "pch.h"
-#include "Player.h"
 #include "AIPlayer.h"
 #include "Board.h"
 
@@ -350,8 +349,8 @@ std::pair<int, int> AIPlayer::ChooseMinimax(Board& board, const std::vector<std:
             auto flipped = boardCopy.ApplyMove(move.first, move.second, playerColor);
             if (flipped.empty()) return -INF;
 
-            return -Minimax(boardCopy, minimaxLevelDepth, -INF, INF, nextTurn);
-            }));
+            return -Minimax(boardCopy, DEPTH, -INF, INF, nextTurn);
+        }));
     }
 
     // Collect results and find best move

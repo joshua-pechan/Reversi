@@ -1,6 +1,4 @@
-#include "pch.h"
 #include "Player.h"
-#include "Board.h"
 
 MoveResult Player::MouseHandler(Board& board, HWND hWnd, RECT clientRect, int x, int y) {
     MoveResult result = { false, -1, -1, {} };

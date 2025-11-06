@@ -13,6 +13,7 @@ public:
 
     int Run();
 
+
     void GameOver();
 
 private:
@@ -26,6 +27,9 @@ private:
     WCHAR     windowTitle[MAX_NAME_STRING];
     HICON     hIcon;
     Board     board;
+
+    HWND hConsole = nullptr;
+    void ToggleConsole();
 
     bool resetInProgress = false;
     std::chrono::steady_clock::time_point lastResetTime;
@@ -43,6 +47,7 @@ private:
 
     std::vector<MoveRecord> moveHistory;
 
+    void TriggerAIMove();
     void Undo();
 };
 
