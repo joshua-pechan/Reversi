@@ -272,7 +272,6 @@ std::vector<std::pair<int, int>> AIPlayer::OrderMoves(const Board& board, const 
 }
 
 int AIPlayer::Minimax(Board& board, int depth, int alpha, int beta, BoardValue currentTurn) {
-    //std::cout << depth << std::endl;
     size_t hash = board.currentHash;
     int alphaOrig = alpha;
 

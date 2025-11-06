@@ -18,7 +18,7 @@ private:
 		{ 100, -20,  10,   5,   5,  10, -20, 100}
 	};
 
-	const int minimaxLevelDepth = 30;
+	const int minimaxLevelDepth = 64;
 
 	std::unordered_map<uint64_t, TTEntry> transpositionTable;
 public:
