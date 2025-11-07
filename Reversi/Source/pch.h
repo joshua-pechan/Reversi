@@ -51,4 +51,4 @@ inline const int tileWeights[8][8] = {
     { 100, -20,  10,   5,   5,  10, -20, 100}
 };
 
-inline bool consoleVisible = false;
+inline bool consoleVisible = true;

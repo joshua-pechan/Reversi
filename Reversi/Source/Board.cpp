@@ -73,6 +73,21 @@ static std::vector<std::pair<int, int>> CollectFlipsInDirection(
     return flips;
 }
 
+std::vector<std::pair<int, int>> Board::ApplyMove(HWND hWnd, int row, int col, BoardValue color) {
+    const std::vector<std::pair<int, int>> totalFlipped = ApplyMove(row, col, color);
+    InvalidateRect(hWnd, NULL, true);
+    UpdateWindow(hWnd);
+
+    //if (consoleVisible) { PrintBoard(); }
+
+    if (consoleVisible) {
+        PrintBoard();
+        std::cout << "(" << MATRIX_SIZE - col - 1 << ", " << row << ")\n" << std::endl;
+    }
+
+    return totalFlipped;
+}
+
 std::vector<std::pair<int, int>> Board::ApplyMove(int row, int col, BoardValue color) {
     std::vector<std::pair<int, int>> totalFlipped;
 
@@ -100,22 +115,6 @@ std::vector<std::pair<int, int>> Board::ApplyMove(int row, int col, BoardValue c
         BoardValue oldColor = boardState[p.first][p.second];
         boardState[p.first][p.second] = color;
         UpdateHash(p.first, p.second, oldColor, color);
-    }
-
-    return totalFlipped;
-}
-
-std::vector<std::pair<int, int>> Board::ApplyMove(HWND hWnd, int row, int col, BoardValue color)
-{
-    const std::vector<std::pair<int, int>> totalFlipped = ApplyMove(row, col, color);
-    InvalidateRect(hWnd, NULL, true);
-    UpdateWindow(hWnd);
-
-    //if (consoleVisible) { PrintBoard(); }
-
-    if (consoleVisible) {
-        PrintBoard();
-        std::cout << "(" << MATRIX_SIZE - col - 1 << ", " << row << ")" << std::endl;
     }
 
     return totalFlipped;
@@ -277,6 +276,4 @@ void Board::PrintBoard() const {
         }
         std::cout << "\n";
     }
-
-    std::cout << "\n";
 }
