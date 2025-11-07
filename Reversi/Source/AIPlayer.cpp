@@ -58,11 +58,15 @@ int AIPlayer::WeightedSimulateFlips(const Board& board, int x, int y, BoardValue
 }
 
 // board heuristic
-std::pair<int, int> AIPlayer::ChooseHeuristic(const Board& board, std::vector<std::pair<int, int>> validMoves) {
+std::pair<int, int> AIPlayer::ChooseHeuristic(const Board& board, std::vector<std::pair<int, int>> validMoves, std::atomic<bool>* forceStop) {
     std::pair<int, int> bestMove = { -1, -1 };
     int bestScore = -INF;
 
     for (const std::pair<int, int>& move : validMoves) {
+        if (forceStop && forceStop->load()) {
+            return (bestMove.first != -1) ? bestMove : validMoves[0];
+        }
+
         int score = WeightedSimulateFlips(board, move.first, move.second, playerColor);
         if (score > bestScore) {
             bestScore = score;
@@ -270,7 +274,11 @@ std::vector<std::pair<int, int>> AIPlayer::OrderMoves(const Board& board, const 
     return ordered;
 }
 
-int AIPlayer::Minimax(Board& board, int depth, int alpha, int beta, BoardValue currentTurn) {
+int AIPlayer::Minimax(Board& board, int depth, int alpha, int beta, BoardValue currentTurn, std::atomic<bool>* forceStop) {
+    if (forceStop && forceStop->load()) {
+        return 0;
+    }
+
     size_t hash = board.currentHash;
     int alphaOrig = alpha;
 
@@ -293,9 +301,9 @@ int AIPlayer::Minimax(Board& board, int depth, int alpha, int beta, BoardValue c
     if (validMoves.empty()) {
         std::vector<std::pair<int, int>> nextValidMoves = GetValidMoves(board, nextTurn);
         if (nextValidMoves.empty()) {
-            return GetTurnMultiplier(currentTurn) * EvaluateBoard(board); // game over
+            return GetTurnMultiplier(currentTurn) * EvaluateBoard(board);
         }
-        return -Minimax(board, depth - 1, -beta, -alpha, nextTurn); // skip turn
+        return -Minimax(board, depth - 1, -beta, -alpha, nextTurn, forceStop);
     }
 
     int bestScore = -INF;
@@ -305,10 +313,14 @@ int AIPlayer::Minimax(Board& board, int depth, int alpha, int beta, BoardValue c
 
     // --- Minimax loop ---
     for (const auto& move : orderedMoves) {
+        if (forceStop && forceStop->load()) {
+            return bestScore > -INF ? bestScore : 0;
+        }
+
         auto flipped = board.ApplyMove(move.first, move.second, currentTurn);
         if (flipped.empty()) continue;
 
-        int score = -Minimax(board, depth - 1, -beta, -alpha, nextTurn);
+        int score = -Minimax(board, depth - 1, -beta, -alpha, nextTurn, forceStop);
 
         board.UndoMove(move.first, move.second, currentTurn, flipped);
 
@@ -331,7 +343,7 @@ int AIPlayer::Minimax(Board& board, int depth, int alpha, int beta, BoardValue c
     return bestScore;
 }
 
-std::pair<int, int> AIPlayer::ChooseMinimax(Board& board, const std::vector<std::pair<int, int>>& validMoves) {
+std::pair<int, int> AIPlayer::ChooseMinimax(Board& board, const std::vector<std::pair<int, int>>& validMoves, std::atomic<bool>* forceStop) {
     std::pair<int, int> bestMove = { -1, -1 };
     int bestScore = -INF;
     BoardValue nextTurn = board.OpponentColor(playerColor);
@@ -344,12 +356,16 @@ std::pair<int, int> AIPlayer::ChooseMinimax(Board& board, const std::vector<std:
     futures.reserve(orderedMoves.size());
 
     for (const auto& move : orderedMoves) {
-        futures.push_back(std::async(std::launch::async, [this, &board, move, nextTurn]() {
+        if (forceStop && forceStop->load()) {
+            break;
+        }
+
+        futures.push_back(std::async(std::launch::async, [this, &board, move, nextTurn, forceStop]() {
             Board boardCopy = board.duplicateBoard();
             auto flipped = boardCopy.ApplyMove(move.first, move.second, playerColor);
             if (flipped.empty()) return -INF;
 
-            return -Minimax(boardCopy, DEPTH, -INF, INF, nextTurn);
+            return -Minimax(boardCopy, DEPTH, -INF, INF, nextTurn, forceStop);
         }));
     }
 
@@ -365,7 +381,7 @@ std::pair<int, int> AIPlayer::ChooseMinimax(Board& board, const std::vector<std:
     return bestMove;
 }
 
-MoveResult AIPlayer::move(Board& board, HWND hWnd, Difficulty difficulty) {
+MoveResult AIPlayer::move(Board& board, HWND hWnd, Difficulty difficulty, std::atomic<bool>* forceStop) {
     MoveResult result = { false, -1, -1, {} };
 
     auto validMoves = GetValidMoves(board);
@@ -373,16 +389,20 @@ MoveResult AIPlayer::move(Board& board, HWND hWnd, Difficulty difficulty) {
 
     switch (difficulty) {
         case Difficulty::HEURISTIC:
-            move = ChooseHeuristic(board, validMoves);
+            move = ChooseHeuristic(board, validMoves, forceStop);
             break;
         case Difficulty::MINIMAX:
-            move = ChooseMinimax(board, validMoves);
+            move = ChooseMinimax(board, validMoves, forceStop);
             break;
     }
 
     if (move.first == -1 && move.second == -1) {
-        MessageBox(nullptr, L"Something Broke in AI code", L"Error", MB_OK);
-        return result;
+        if (!validMoves.empty()) {
+            move = validMoves[0];
+        } else {
+            MessageBox(nullptr, L"Something Broke in AI code", L"Error", MB_OK);
+            return result;
+        }
     }
 
     result.valid = true;

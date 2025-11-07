@@ -13,6 +13,11 @@
 #include <algorithm>
 #include <iostream>
 #include <future>
+#include <gdiplus.h>
+
+#pragma comment(lib, "gdiplus.lib")
+
+using namespace Gdiplus;
 
 #include "../resource.h"
 
@@ -33,6 +38,7 @@ inline const int directions[8][2] = {
 };
 
 constexpr int DEPTH = 64;
+static constexpr int AI_TIME_LIMIT = 30;
 
 inline const int tileWeights[8][8] = {
     { 100, -20,  10,   5,   5,  10, -20, 100},
@@ -45,4 +51,4 @@ inline const int tileWeights[8][8] = {
     { 100, -20,  10,   5,   5,  10, -20, 100}
 };
 
-inline bool consoleVisible = true;
+inline bool consoleVisible = false;

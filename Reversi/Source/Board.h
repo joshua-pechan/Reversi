@@ -19,6 +19,11 @@ private:
     COLORREF white = RGB(255, 255, 255);;
     COLORREF black = RGB(0, 0, 0);;
 
+    std::wstring difficultyText;
+    std::wstring timerText;
+    COLORREF timerColor = RGB(255, 255, 255);
+    bool setShowSingleplayerText = false;
+
     int cellWidth;
     int cellHeight;
 
@@ -32,13 +37,21 @@ public:
     Board duplicateBoard() const;
     static BoardValue OpponentColor(BoardValue c);
 
+    // For drawing text overlays
+    void SetDifficultyText(const std::wstring& text) { difficultyText = text; }
+    void SetTimerText(const std::wstring& text, COLORREF color) {
+        timerText = text;
+        timerColor = color;
+    }
+    void SetShowSingleplayerText(bool show) { setShowSingleplayerText = show; }
+
     std::vector<std::pair<int, int>> ApplyMove(int row, int col, BoardValue color);
     std::vector<std::pair<int, int>> ApplyMove(HWND hWnd, int row, int col, BoardValue color);
     void UndoMove(int row, int col, BoardValue color, const std::vector<std::pair<int, int>>& flipped);
     void reset();
     void LoadResources(HINSTANCE hInstance, LPCWSTR backgroundID, LPCWSTR numberedBackgroundID);
     void Draw(HDC hdc, RECT clientRect);
-    void DrawPiece(HDC hdcMem, COLORREF color, int indexX, int indexY);
+    void DrawPiece(Graphics* graphics, Color color, int indexX, int indexY);
     void CountPieces(int& whiteCount, int& blackCount) const;
     void PrintBoard() const;
     BoardValue boardState[MATRIX_SIZE][MATRIX_SIZE];

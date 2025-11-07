@@ -66,6 +66,23 @@ int MainWindow::Run() {
     return static_cast<int>(msg.wParam);
 }
 
+void MainWindow::RunTimerThread() {
+    while (aiThinking) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        if (aiThinking) {
+            aiTimeRemaining--;
+
+            if (aiTimeRemaining <= 0) {
+                aiTimeRemaining = 0;
+                forceAIStop = true;
+            }
+
+            InvalidateRect(hWnd, NULL, TRUE);
+        }
+    }
+}
+
 void MainWindow::TriggerAIMove() {
     if (singlePlayer && !player1Turn && player2.HasValidMove(board)) {
         InvalidateRect(hWnd, NULL, TRUE);
@@ -73,7 +90,28 @@ void MainWindow::TriggerAIMove() {
 
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-        MoveResult aiResult = player2.move(board, hWnd, difficulty);
+        // Start timer thread
+        aiThinking = true;
+        aiTimeRemaining = AI_TIME_LIMIT;
+        forceAIStop = false;
+
+        timerThread = std::thread(&MainWindow::RunTimerThread, this);
+
+        // Run AI in separate thread
+        MoveResult aiResult = player2.move(board, hWnd, difficulty, &forceAIStop);
+
+        // Stop timer
+        aiThinking = false;
+
+        // Wait for timer thread to finish
+        if (timerThread.joinable()) {
+            timerThread.join();
+        }
+
+        // Reset timer display
+        aiTimeRemaining = AI_TIME_LIMIT;
+
+        // Process AI move on main thread
         if (aiResult.valid) {
             MoveRecord aiRecord;
             aiRecord.row = aiResult.row;
@@ -83,10 +121,10 @@ void MainWindow::TriggerAIMove() {
             moveHistory.push_back(aiRecord);
 
             player1Turn = true;
-
-            InvalidateRect(hWnd, NULL, TRUE);
-            UpdateWindow(hWnd);
         }
+
+        InvalidateRect(hWnd, NULL, TRUE);
+        UpdateWindow(hWnd);
     }
 }
 
@@ -129,7 +167,7 @@ void MainWindow::GameOver() {
     if (response == IDYES) {
         board.reset();
         moveHistory.clear();
-        player1Turn = true;
+        player1Turn = (player1.playerColor == BoardValue::BLACK);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
@@ -187,6 +225,16 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
             mmi->ptMinTrackSize.y = WINDOW_HEIGHT;
             return 0;
         }
+
+        case WM_TIMER:
+            if (wParam == 1 && aiThinking) {
+                aiTimeRemaining--;
+                if (aiTimeRemaining < 0) {
+                    aiTimeRemaining = 0;
+                }
+                InvalidateRect(hWnd, NULL, TRUE);
+            }
+            return 0;
 
         case WM_COMMAND:
             switch (LOWORD(wParam)) {
@@ -256,26 +304,41 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
             break;
 
         case WM_ERASEBKGND:
+            return 1;
+
+        case WM_PAINT:
         {
-            HDC hdc = (HDC)wParam;
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hWnd, &ps);
+
             RECT rect;
             GetClientRect(hWnd, &rect);
+
+            board.SetDifficultyText(DifficultyToWString(difficulty));
+
+            if (singlePlayer) {
+                int timeLeft = aiTimeRemaining.load();
+                std::wstring timerText = L"AI Time: " + std::to_wstring(timeLeft) + L"s";
+
+                COLORREF timerColor;
+                if (timeLeft <= 5) {
+                    timerColor = RGB(255, 0, 0);
+                }
+                else if (timeLeft <= 10) {
+                    timerColor = RGB(255, 165, 0);
+                }
+                else {
+                    timerColor = RGB(255, 255, 255);
+                }
+
+                board.SetTimerText(timerText, timerColor);
+                board.SetShowSingleplayerText(true);
+            }
+            else {
+                board.SetShowSingleplayerText(false);
+            }
+
             board.Draw(hdc, rect);
-
-            // Draw difficulty in top-right corner
-            std::wstring diffText = DifficultyToWString(difficulty);
-
-            int oldBkMode = SetBkMode(hdc, TRANSPARENT);
-
-            RECT textRect;
-            textRect.top = 8;
-            textRect.bottom = textRect.top + 24;
-            textRect.right = rect.right - 20;
-            textRect.left = textRect.right - 200;
-
-            DrawTextW(hdc, diffText.c_str(), -1, &textRect, DT_SINGLELINE | DT_RIGHT | DT_VCENTER);
-
-            SetBkMode(hdc, oldBkMode);
 
             if (!player1.HasValidMove(board) && !player2.HasValidMove(board)) {
                 GameOver();
@@ -290,21 +353,38 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
             GetClientRect(hWnd, &rect);
 
             if (singlePlayer) {
-                if (player1.HasValidMove(board)) {
-                    auto moveResult = player1.MouseHandler(board, hWnd, rect, LOWORD(lParam), HIWORD(lParam));
-
-                    if (moveResult.valid) {
-                        // Record player move
-                        MoveRecord record;
-                        record.row = moveResult.row;
-                        record.col = moveResult.col;
-                        record.color = player1.playerColor;
-                        record.flipped = moveResult.flipped;
-
-                        moveHistory.push_back(record);
-
-                        player1Turn = false;
+                if (!player1.HasValidMove(board)) {
+                    player1Turn = false;
+                    if (player2.HasValidMove(board)) {
                         TriggerAIMove();
+                    } else {
+                        InvalidateRect(hWnd, NULL, TRUE);
+                    }
+                    break;
+                }
+
+                auto moveResult = player1.MouseHandler(board, hWnd, rect, LOWORD(lParam), HIWORD(lParam));
+
+                if (moveResult.valid) {
+                    // Record player move
+                    MoveRecord record;
+                    record.row = moveResult.row;
+                    record.col = moveResult.col;
+                    record.color = player1.playerColor;
+                    record.flipped = moveResult.flipped;
+
+                    moveHistory.push_back(record);
+
+                    player1Turn = false;
+
+                    if (player2.HasValidMove(board)) {
+                        TriggerAIMove();
+                    }
+                    else {
+                        if (player1.HasValidMove(board)) {
+                            player1Turn = true;
+                        }
+                        InvalidateRect(hWnd, NULL, TRUE);
                     }
                 }
             }
@@ -321,16 +401,29 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                     moveHistory.push_back(record);
 
                     player1Turn = !player1Turn;
+
+                    Player& newPlayer = player1Turn ? player1 : player2;
+                    if (!newPlayer.HasValidMove(board)) {
+                        player1Turn = !player1Turn;
+                    }
                 }
-                else if (!currentPlayer.HasValidMove(board)) {
-                    player1Turn = !player1Turn;
+                else {
+                    if (!currentPlayer.HasValidMove(board)) {
+                        player1Turn = !player1Turn;
+                    }
                 }
             }
 
+            InvalidateRect(hWnd, NULL, TRUE);
+            UpdateWindow(hWnd);
             break;
         }
 
         case WM_DESTROY:
+            aiThinking = false;
+            if (timerThread.joinable()) {
+                timerThread.join();
+            }
             PostQuitMessage(0);
             break;
 
@@ -341,8 +434,13 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    GdiplusStartupInput gdiplusStartupInput;
+    ULONG_PTR gdiplusToken;
+    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
     MainWindow app(hInstance);
     if (!app.Init(nCmdShow)) {
+        GdiplusShutdown(gdiplusToken);
         return 0;
     }
     return app.Run();

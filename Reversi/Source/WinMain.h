@@ -13,7 +13,6 @@ public:
 
     int Run();
 
-
     void GameOver();
 
 private:
@@ -31,6 +30,11 @@ private:
     HWND hConsole = nullptr;
     void ToggleConsole();
 
+    std::atomic<int> aiTimeRemaining{ AI_TIME_LIMIT };
+    std::atomic<bool> aiThinking{ false };
+    std::atomic<bool> forceAIStop{ false };
+    std::thread timerThread;
+
     bool resetInProgress = false;
     std::chrono::steady_clock::time_point lastResetTime;
 
@@ -46,6 +50,8 @@ private:
     };
 
     std::vector<MoveRecord> moveHistory;
+
+    void RunTimerThread();
 
     void TriggerAIMove();
     void Undo();

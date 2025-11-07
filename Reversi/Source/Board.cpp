@@ -143,55 +143,84 @@ void Board::LoadResources(HINSTANCE hInstance, LPCWSTR backgroundID, LPCWSTR num
 }
 
 void Board::Draw(HDC hdc, RECT clientRect) {
-    HDC hdcMem = CreateCompatibleDC(hdc);
-    HBITMAP hBitmapMem = CreateCompatibleBitmap(hdc, clientRect.right, clientRect.bottom);
+    // Create memory bitmap for double buffering
+    Bitmap memBitmap(clientRect.right, clientRect.bottom);
+    Graphics graphics(&memBitmap);
 
-    HGDIOBJ oldBitmap = SelectObject(hdcMem, hBitmapMem);
+    // Set rendering quality
+    graphics.SetSmoothingMode(SmoothingModeAntiAlias);
+    graphics.SetTextRenderingHint(TextRenderingHintAntiAlias);
+    graphics.SetInterpolationMode(InterpolationModeHighQualityBicubic);
 
-    HBRUSH hBrush = CreateSolidBrush(RGB(0, 0, 0));
-    FillRect(hdcMem, &clientRect, hBrush);
-    DeleteObject(hBrush);
+    // Fill background with black
+    SolidBrush blackBrush(Color(255, 0, 0, 0));
+    graphics.FillRectangle(&blackBrush, 0, 0, clientRect.right, clientRect.bottom);
 
-    HDC hdcMemOriginal = CreateCompatibleDC(hdc);
-    BITMAP bitmap;
-
-    if (useNumberedBackground) {
-        SelectObject(hdcMemOriginal, backgroundNumbered);
-
-        GetObject(backgroundNumbered, sizeof(BITMAP), &bitmap);
-    } else {
-        SelectObject(hdcMemOriginal, background);
-
-        GetObject(background, sizeof(BITMAP), &bitmap);
+    // Draw background image - convert HBITMAP to GDI+ Bitmap
+    HBITMAP hBitmap = useNumberedBackground ? backgroundNumbered : background;
+    if (hBitmap) {
+        Bitmap* bgImage = Bitmap::FromHBITMAP(hBitmap, NULL);
+        if (bgImage) {
+            graphics.DrawImage(bgImage, 0, 0, clientRect.right, clientRect.bottom);
+            delete bgImage;  // Clean up temporary bitmap
+        }
     }
 
-    StretchBlt(hdcMem, 0, 0, clientRect.right, clientRect.bottom, hdcMemOriginal, 0, 0, bitmap.bmWidth, bitmap.bmHeight, SRCCOPY);
-
+    // Calculate cell dimensions
     cellWidth = (clientRect.right - borderX * 2) / MATRIX_SIZE;
     cellHeight = (clientRect.bottom - borderY * 2) / MATRIX_SIZE;
 
+    // Draw pieces
     for (int i = 0; i < MATRIX_SIZE; i++) {
         for (int j = 0; j < MATRIX_SIZE; j++) {
             switch (boardState[i][j]) {
-                case BoardValue::WHITE:
-                    Board::DrawPiece(hdcMem, white, i, j);
-                    break;
-                case BoardValue::BLACK:
-                    Board::DrawPiece(hdcMem, black, i, j);
-                    break;
+            case BoardValue::WHITE:
+                DrawPiece(&graphics, Color(255, 255, 255, 255), i, j);
+                break;
+            case BoardValue::BLACK:
+                DrawPiece(&graphics, Color(255, 0, 0, 0), i, j);
+                break;
             }
         }
     }
 
-    BitBlt(hdc, 0, 0, clientRect.right, clientRect.bottom, hdcMem, 0, 0, SRCCOPY);
+    // Draw text overlays using GDI (on the GDI+ bitmap)
+    HDC hdcMem = graphics.GetHDC();
 
-    SelectObject(hdcMem, oldBitmap);
-    DeleteObject(hBitmapMem);
-    DeleteDC(hdcMemOriginal);
-    DeleteDC(hdcMem);
+    SetBkMode(hdcMem, TRANSPARENT);
+
+    // Draw difficulty text
+    if (setShowSingleplayerText && !difficultyText.empty()) {
+        RECT textRect;
+        textRect.top = 8;
+        textRect.bottom = textRect.top + 24;
+        textRect.right = clientRect.right - 20;
+        textRect.left = textRect.right - 200;
+
+        SetTextColor(hdcMem, RGB(255, 255, 255));
+        DrawTextW(hdcMem, difficultyText.c_str(), -1, &textRect, DT_SINGLELINE | DT_RIGHT | DT_VCENTER);
+    }
+
+    // Draw timer text
+    if (setShowSingleplayerText && !timerText.empty()) {
+        RECT timerRect;
+        timerRect.top = 24;
+        timerRect.bottom = timerRect.top + 24;
+        timerRect.right = clientRect.right - 20;
+        timerRect.left = timerRect.right - 200;
+
+        SetTextColor(hdcMem, timerColor);
+        DrawTextW(hdcMem, timerText.c_str(), -1, &timerRect, DT_SINGLELINE | DT_RIGHT | DT_VCENTER);
+    }
+
+    graphics.ReleaseHDC(hdcMem);
+
+    // Blit to screen
+    Graphics screenGraphics(hdc);
+    screenGraphics.DrawImage(&memBitmap, 0, 0);
 }
 
-void Board::DrawPiece(HDC hdcMem, COLORREF color, int indexX, int indexY) {
+void Board::DrawPiece(Graphics* graphics, Color color, int indexX, int indexY) {
     int x = borderX + indexX * cellWidth;
     int y = borderY + indexY * cellHeight;
 
@@ -202,16 +231,13 @@ void Board::DrawPiece(HDC hdcMem, COLORREF color, int indexX, int indexY) {
     int offsetX = 1;
     int offsetY = 1;
 
-    HBRUSH hBrush = CreateSolidBrush(color);
-    HBRUSH oldBrush = (HBRUSH)SelectObject(hdcMem, hBrush);
-
-    HPEN hPen = (HPEN)SelectObject(hdcMem, GetStockObject(NULL_PEN));
-
-    Ellipse(hdcMem, x + paddingX + offsetX, y + paddingY + offsetY, x + cellWidth - paddingX + offsetX, y + cellHeight - paddingY + offsetY);
-
-    SelectObject(hdcMem, oldBrush);
-    SelectObject(hdcMem, hPen);
-    DeleteObject(hBrush);
+    // Create brush and draw ellipse
+    SolidBrush brush(color);
+    graphics->FillEllipse(&brush,
+        x + paddingX + offsetX,
+        y + paddingY + offsetY,
+        cellWidth - 2 * paddingX,
+        cellHeight - 2 * paddingY);
 }
 
 void Board::CountPieces(int& whiteCount, int& blackCount) const {
@@ -233,13 +259,13 @@ void Board::PrintBoard() const {
     std::cout << "\n";
 
     // Print from bottom to top (reverse array order)
-    for (int col = 0; col < MATRIX_SIZE; col++) {
-        std::cout << col << " ";
+    for (int row = 0; row < MATRIX_SIZE; row++) {
+        std::cout << MATRIX_SIZE - row - 1 << " ";
 
-        for (int row = 0; row < MATRIX_SIZE; row++) {
+        for (int col = 0; col < MATRIX_SIZE; col++) {
             char c = '.';
-            if (boardState[row][col] == BoardValue::WHITE) c = 'W';
-            else if (boardState[row][col] == BoardValue::BLACK) c = 'B';
+            if (boardState[col][row] == BoardValue::WHITE) c = 'W';
+            else if (boardState[col][row] == BoardValue::BLACK) c = 'B';
             std::cout << c << " ";
         }
         std::cout << "\n";
