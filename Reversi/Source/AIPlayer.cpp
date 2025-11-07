@@ -410,5 +410,9 @@ MoveResult AIPlayer::move(Board& board, HWND hWnd, Difficulty difficulty, std::a
     result.col = move.second;
     result.flipped = board.ApplyMove(hWnd, move.first, move.second, playerColor);
 
+    //if (consoleVisible) {
+    //    std::cout << "(" << Board::MATRIX_SIZE - result.col - 1 << ", " << result.row << ")" << std::endl;
+    //}
+
     return result;
 }

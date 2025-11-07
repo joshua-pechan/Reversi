@@ -110,7 +110,14 @@ std::vector<std::pair<int, int>> Board::ApplyMove(HWND hWnd, int row, int col, B
     const std::vector<std::pair<int, int>> totalFlipped = ApplyMove(row, col, color);
     InvalidateRect(hWnd, NULL, true);
     UpdateWindow(hWnd);
-    if (consoleVisible) PrintBoard();
+
+    //if (consoleVisible) { PrintBoard(); }
+
+    if (consoleVisible) {
+        PrintBoard();
+        std::cout << "(" << MATRIX_SIZE - col - 1 << ", " << row << ")" << std::endl;
+    }
+
     return totalFlipped;
 }
 
