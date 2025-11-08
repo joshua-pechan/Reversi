@@ -44,6 +44,8 @@ private:
     bool singlePlayer = true;
     Difficulty difficulty = Difficulty::MINIMAX;
 
+    bool gameOverShown = false;
+
     struct MoveRecord {
         int row;
         int col;

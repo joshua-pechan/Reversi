@@ -88,9 +88,6 @@ void MainWindow::RunTimerThread() {
 // Trigger AI move if it's AI's turn in single player mode
 void MainWindow::TriggerAIMove() {
     if (singlePlayer && !player1Turn && player2.HasValidMove(board)) {
-        InvalidateRect(hWnd, NULL, TRUE);
-        UpdateWindow(hWnd);
-
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
         // Start timer thread
@@ -153,6 +150,9 @@ void MainWindow::Undo() {
 
 // Handle game over scenario
 void MainWindow::GameOver() {
+    if (gameOverShown) return;
+    gameOverShown = true;
+
     int whiteCount = 0, blackCount = 0;
     board.CountPieces(whiteCount, blackCount);
     std::wstring result;
@@ -172,6 +172,7 @@ void MainWindow::GameOver() {
         board.reset();
         moveHistory.clear();
         player1Turn = (player1.playerColor == BoardValue::BLACK);
+        gameOverShown = false;
 
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
@@ -250,11 +251,13 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                     singlePlayer = true;
                     board.reset();
                     moveHistory.clear();
+                    gameOverShown = false;
                     break;
                 case ID_PLAYER_MULTIPLAYER:
                     singlePlayer = false;
                     board.reset();
                     moveHistory.clear();
+                    gameOverShown = false;
                     break;
                 case ID_PLAYER_COLOR_BLACK:
                     // Player chooses to play as Black
@@ -262,6 +265,7 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                     player2.playerColor = BoardValue::WHITE;
                     board.reset();
                     moveHistory.clear();
+                    gameOverShown = false;
                     player1Turn = (player1.playerColor == BoardValue::BLACK);
                     break;
                 case ID_PLAYER_COLOR_WHITE:
@@ -270,6 +274,7 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                     player2.playerColor = BoardValue::BLACK;
                     board.reset();
                     moveHistory.clear();
+                    gameOverShown = false;
                     player1Turn = (player1.playerColor == BoardValue::BLACK);
 
                     TriggerAIMove();
@@ -286,11 +291,13 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                     difficulty = Difficulty::HEURISTIC;
                     board.reset();
                     moveHistory.clear();
+                    gameOverShown = false;
                     break;
                 case ID_DIFFICULTY_MINIMAX:
                     difficulty = Difficulty::MINIMAX;
                     board.reset();
                     moveHistory.clear();
+                    gameOverShown = false;
                     break;
 
                 case ID_UNDO:
@@ -381,6 +388,9 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 
                     player1Turn = false;
 
+                    InvalidateRect(hWnd, NULL, FALSE);
+                    UpdateWindow(hWnd);
+
                     if (player2.HasValidMove(board)) {
                         TriggerAIMove();
                     }
@@ -391,6 +401,9 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                         InvalidateRect(hWnd, NULL, TRUE);
                     }
                 }
+
+                InvalidateRect(hWnd, NULL, TRUE);
+                UpdateWindow(hWnd);
             }
             else {
                 Player& currentPlayer = player1Turn ? player1 : player2;
