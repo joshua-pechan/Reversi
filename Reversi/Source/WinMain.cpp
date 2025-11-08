@@ -1,5 +1,6 @@
 #include "WinMain.h"
 
+// Main window constructor
 MainWindow::MainWindow(HINSTANCE hInst)
     : hInstance(hInst), hWnd(nullptr), hIcon(nullptr) {
 
@@ -10,6 +11,7 @@ MainWindow::MainWindow(HINSTANCE hInst)
 
 MainWindow::~MainWindow() {}
 
+// Initialize the window, attack console, register class and create window
 bool MainWindow::Init(int nCmdShow) {
     FILE* fp;
     AllocConsole();
@@ -83,6 +85,7 @@ void MainWindow::RunTimerThread() {
     }
 }
 
+// Trigger AI move if it's AI's turn in single player mode
 void MainWindow::TriggerAIMove() {
     if (singlePlayer && !player1Turn && player2.HasValidMove(board)) {
         InvalidateRect(hWnd, NULL, TRUE);
@@ -148,6 +151,7 @@ void MainWindow::Undo() {
     TriggerAIMove();
 }
 
+// Handle game over scenario
 void MainWindow::GameOver() {
     int whiteCount = 0, blackCount = 0;
     board.CountPieces(whiteCount, blackCount);

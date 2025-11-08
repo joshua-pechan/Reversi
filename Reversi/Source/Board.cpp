@@ -22,6 +22,7 @@ void Board::UpdateHash(int row, int col, BoardValue oldValue, BoardValue newValu
     else if (newValue == BoardValue::WHITE) currentHash ^= zobristTable[row][col][1];
 }
 
+// construct a new board
 Board::Board() : background(nullptr), cellWidth(), cellHeight() {
     reset();
 }

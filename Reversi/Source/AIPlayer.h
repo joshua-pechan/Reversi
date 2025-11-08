@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "Player.h"
 
+// transposition table entry
 struct TTEntry {
 	int depth;
 	int score;

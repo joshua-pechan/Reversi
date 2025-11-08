@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "Player.h"
 
+// Represents the game board and handles game logic and rendering
 class Board {
 public:
     static constexpr int MATRIX_SIZE = 8;
@@ -19,6 +20,7 @@ private:
     COLORREF white = RGB(255, 255, 255);;
     COLORREF black = RGB(0, 0, 0);;
 
+    // Overlay text
     std::wstring difficultyText;
     std::wstring timerText;
     COLORREF timerColor = RGB(255, 255, 255);
@@ -45,14 +47,20 @@ public:
     }
     void SetShowSingleplayerText(bool show) { setShowSingleplayerText = show; }
 
+	// Game operations
     std::vector<std::pair<int, int>> ApplyMove(int row, int col, BoardValue color);
     std::vector<std::pair<int, int>> ApplyMove(HWND hWnd, int row, int col, BoardValue color);
     void UndoMove(int row, int col, BoardValue color, const std::vector<std::pair<int, int>>& flipped);
     void reset();
     void LoadResources(HINSTANCE hInstance, LPCWSTR backgroundID, LPCWSTR numberedBackgroundID);
+    
+    // Rendering
     void Draw(HDC hdc, RECT clientRect);
     void DrawPiece(Graphics* graphics, Color color, int indexX, int indexY);
+    
+    // Utilities
     void CountPieces(int& whiteCount, int& blackCount) const;
     void PrintBoard() const;
+    
     BoardValue boardState[MATRIX_SIZE][MATRIX_SIZE];
 };

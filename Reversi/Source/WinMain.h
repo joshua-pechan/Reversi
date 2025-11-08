@@ -4,6 +4,7 @@
 #include "Player.h"
 #include "AIPlayer.h"
 
+// Main application window, coordinates UI, user input, and game flow
 class MainWindow {
 public:
     MainWindow(HINSTANCE hInst);
@@ -30,6 +31,7 @@ private:
     HWND hConsole = nullptr;
     void ToggleConsole();
 
+    // AI timer state
     std::atomic<int> aiTimeRemaining{ AI_TIME_LIMIT };
     std::atomic<bool> aiThinking{ false };
     std::atomic<bool> forceAIStop{ false };

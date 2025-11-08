@@ -18,7 +18,7 @@ std::vector<std::pair<int, int>> AIPlayer::GetValidMoves(const Board& board, Boa
     return moves;
 }
 
-
+// Counts flips along a single direction with weights
 int AIPlayer::WeightedCountFlips(const Board& board, int x, int y, int dx, int dy, BoardValue color) {
     int flips = 0;
     int nx = x + dx;
@@ -43,6 +43,7 @@ int AIPlayer::WeightedCountFlips(const Board& board, int x, int y, int dx, int d
     return 0;
 }
 
+// Simulates placing a piece and counts weighted flips for all directions
 int AIPlayer::WeightedSimulateFlips(const Board& board, int x, int y, BoardValue color) {
     if (board.boardState[x][y] != BoardValue::EMPTY) { return 0; }
 
@@ -264,6 +265,7 @@ int AIPlayer::EvaluateBoard(const Board& board) {
     return score;
 }
 
+// sort moves by heuristic value
 std::vector<std::pair<int, int>> AIPlayer::OrderMoves(const Board& board, const std::vector<std::pair<int, int>>& moves, BoardValue color) {
     std::vector<std::pair<int, int>> ordered = moves;
     std::sort(ordered.begin(), ordered.end(), [&](const auto& a, const auto& b) {
@@ -343,6 +345,7 @@ int AIPlayer::Minimax(Board& board, int depth, int alpha, int beta, BoardValue c
     return bestScore;
 }
 
+// evaluate all moves in parallel then choose the best
 std::pair<int, int> AIPlayer::ChooseMinimax(Board& board, const std::vector<std::pair<int, int>>& validMoves, std::atomic<bool>* forceStop) {
     std::pair<int, int> bestMove = { -1, -1 };
     int bestScore = -INF;
