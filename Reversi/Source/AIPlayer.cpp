@@ -82,13 +82,17 @@ std::pair<int, int> AIPlayer::ChooseHeuristic(const Board& board, std::vector<st
 int AIPlayer::GetTurnMultiplier(BoardValue currentTurn) {
     return (playerColor == currentTurn) ? 1 : -1;
 }
+
+// ===================================================================
+// STABLE DISC COUNTER
+// ===================================================================
 int AIPlayer::CountStableDiscs(const Board& board, BoardValue color) {
     bool stable[8][8] = { false };
     int count = 0;
 
-    // Corners are always stable
-    auto checkCorner = [&](int x, int y) {
-        if (board.boardState[x][y] == color) {
+    // === PHASE 1: Mark corners as stable ===
+    auto markStable = [&](int x, int y) -> bool {
+        if (board.boardState[x][y] == color && !stable[x][y]) {
             stable[x][y] = true;
             count++;
             return true;
@@ -96,170 +100,451 @@ int AIPlayer::CountStableDiscs(const Board& board, BoardValue color) {
         return false;
         };
 
-    checkCorner(0, 0);
-    checkCorner(0, 7);
-    checkCorner(7, 0);
-    checkCorner(7, 7);
+    bool corners[4] = {
+        markStable(0, 0), markStable(0, 7),
+        markStable(7, 0), markStable(7, 7)
+    };
 
-    // Propagate stability from corners along edges
-    // Top edge from top-left corner
-    if (stable[0][0]) {
-        for (int y = 1; y < 8; y++) {
-            if (board.boardState[0][y] == color) {
-                stable[0][y] = true;
+    // === PHASE 2: Propagate from corners along edges ===
+    auto propagateEdge = [&](int startX, int startY, int dx, int dy) {
+        int x = startX + dx, y = startY + dy;
+        while (x >= 0 && x < 8 && y >= 0 && y < 8) {
+            if (board.boardState[x][y] != color) break;
+            if (!stable[x][y]) {
+                stable[x][y] = true;
                 count++;
             }
-            else break;
+            else {
+                break;
+            }
+            x += dx; y += dy;
+        }
+        };
+
+    if (corners[0]) { // Top-left
+        propagateEdge(0, 0, 0, 1);  // Right
+        propagateEdge(0, 0, 1, 0);  // Down
+    }
+    if (corners[1]) { // Top-right
+        propagateEdge(0, 7, 0, -1); // Left
+        propagateEdge(0, 7, 1, 0);  // Down
+    }
+    if (corners[2]) { // Bottom-left
+        propagateEdge(7, 0, -1, 0); // Up
+        propagateEdge(7, 0, 0, 1);  // Right
+    }
+    if (corners[3]) { // Bottom-right
+        propagateEdge(7, 7, -1, 0); // Up
+        propagateEdge(7, 7, 0, -1); // Left
+    }
+
+    // === PHASE 3: Check for completely filled edges ===
+    auto checkFullEdge = [&](int fixed, bool isRow) {
+        bool allSame = true;
+        for (int i = 0; i < 8; i++) {
+            int x = isRow ? fixed : i;
+            int y = isRow ? i : fixed;
+            if (board.boardState[x][y] != color) {
+                allSame = false;
+                break;
+            }
+        }
+        if (allSame) {
+            for (int i = 0; i < 8; i++) {
+                int x = isRow ? fixed : i;
+                int y = isRow ? i : fixed;
+                if (!stable[x][y]) {
+                    stable[x][y] = true;
+                    count++;
+                }
+            }
+        }
+        };
+
+    checkFullEdge(0, true);  // Top
+    checkFullEdge(7, true);  // Bottom
+    checkFullEdge(0, false); // Left
+    checkFullEdge(7, false); // Right
+
+    // === PHASE 4: Multi-pass interior propagation ===
+    const int directions[4][2] = { {0,1}, {1,0}, {1,1}, {1,-1} };
+
+    bool changed = true;
+    int maxPasses = 15;
+
+    while (changed && maxPasses-- > 0) {
+        changed = false;
+
+        for (int x = 0; x < 8; x++) {
+            for (int y = 0; y < 8; y++) {
+                if (stable[x][y] || board.boardState[x][y] != color)
+                    continue;
+
+                bool isStable = true;
+
+                // Check all 4 axes
+                for (const auto& dir : directions) {
+                    int dx = dir[0], dy = dir[1];
+                    bool posLocked = false, negLocked = false;
+
+                    // Check positive direction
+                    int nx = x + dx, ny = y + dy;
+                    while (nx >= 0 && nx < 8 && ny >= 0 && ny < 8) {
+                        if (board.boardState[nx][ny] != color) {
+                            posLocked = true; // Hit edge or opponent
+                            break;
+                        }
+                        if (stable[nx][ny]) {
+                            posLocked = true; // Hit stable disc
+                            break;
+                        }
+                        nx += dx; ny += dy;
+                    }
+                    if (nx < 0 || nx >= 8 || ny < 0 || ny >= 8) {
+                        posLocked = true; // Hit board edge
+                    }
+
+                    // Check negative direction
+                    nx = x - dx; ny = y - dy;
+                    while (nx >= 0 && nx < 8 && ny >= 0 && ny < 8) {
+                        if (board.boardState[nx][ny] != color) {
+                            negLocked = true;
+                            break;
+                        }
+                        if (stable[nx][ny]) {
+                            negLocked = true;
+                            break;
+                        }
+                        nx -= dx; ny -= dy;
+                    }
+                    if (nx < 0 || nx >= 8 || ny < 0 || ny >= 8) {
+                        negLocked = true;
+                    }
+
+                    // Axis must be locked in both directions
+                    if (!posLocked || !negLocked) {
+                        isStable = false;
+                        break;
+                    }
+                }
+
+                if (isStable) {
+                    stable[x][y] = true;
+                    count++;
+                    changed = true;
+                }
+            }
         }
     }
-    // Similar for other edges...
 
     return count;
 }
 
+// ===================================================================
+// MOBILITY COUNTER
+// ===================================================================
+int AIPlayer::CountMoves(const Board& board, BoardValue color) {
+    int moveCount = 0;
+    BoardValue opponent = board.OpponentColor(color);
+
+    for (int x = 0; x < 8; x++) {
+        for (int y = 0; y < 8; y++) {
+            if (board.boardState[x][y] != BoardValue::EMPTY) continue;
+
+            // Check all 8 directions
+            for (const auto& dir : directions) {
+                int dx = dir[0], dy = dir[1];
+                int nx = x + dx, ny = y + dy;
+
+                // Must have at least one opponent disc in this direction
+                if (nx < 0 || nx >= 8 || ny < 0 || ny >= 8 ||
+                    board.boardState[nx][ny] != opponent) {
+                    continue;
+                }
+
+                // Walk in direction, looking for our color
+                nx += dx; ny += dy;
+                while (nx >= 0 && nx < 8 && ny >= 0 && ny < 8) {
+                    if (board.boardState[nx][ny] == BoardValue::EMPTY)
+                        break;
+                    if (board.boardState[nx][ny] == color) {
+                        moveCount++;
+                        goto nextSquare; // Valid move found
+                    }
+                    nx += dx; ny += dy;
+                }
+            }
+        nextSquare:;
+        }
+    }
+
+    return moveCount;
+}
+
+// ===================================================================
+// CORNER EVALUATION
+// ===================================================================
+int AIPlayer::EvaluateCorners(const Board& board, BoardValue myColor, BoardValue oppColor, int pieceCount) {
+    int score = 0;
+
+    struct CornerRegion {
+        int cx, cy;  // Corner
+        int xx, yy;  // X-square (diagonal)
+        int c1x, c1y, c2x, c2y;  // C-squares (adjacent)
+    };
+
+    CornerRegion regions[4] = {
+        {0, 0, 1, 1, 0, 1, 1, 0},  // Top-left
+        {0, 7, 1, 6, 0, 6, 1, 7},  // Top-right
+        {7, 0, 6, 1, 6, 0, 7, 1},  // Bottom-left
+        {7, 7, 6, 6, 6, 7, 7, 6}   // Bottom-right
+    };
+
+    // Dynamic penalty based on game phase
+    int xPenalty = pieceCount < 25 ? 80 : (pieceCount < 40 ? 50 : 25);
+    int cPenalty = pieceCount < 25 ? 40 : (pieceCount < 40 ? 25 : 15);
+
+    for (const auto& r : regions) {
+        BoardValue corner = board.boardState[r.cx][r.cy];
+        BoardValue xSquare = board.boardState[r.xx][r.yy];
+        BoardValue c1 = board.boardState[r.c1x][r.c1y];
+        BoardValue c2 = board.boardState[r.c2x][r.c2y];
+
+        // Corner value - massive throughout game
+        if (corner == myColor) {
+            score += 100;
+            // Adjacent squares now stable and valuable
+            if (xSquare == myColor) score += 15;
+            if (c1 == myColor) score += 15;
+            if (c2 == myColor) score += 15;
+        }
+        else if (corner == oppColor) {
+            score -= 100;
+            if (xSquare == oppColor) score -= 15;
+            if (c1 == oppColor) score -= 15;
+            if (c2 == oppColor) score -= 15;
+        }
+        else {
+            // Corner empty - dangerous zone
+
+            // X-square penalty
+            if (xSquare == myColor) {
+                score -= xPenalty;
+            }
+            else if (xSquare == oppColor) {
+                score += xPenalty;
+            }
+
+            // C-square penalty (reduced if wedge forming)
+            bool wedgeForming = (c1 == myColor && c2 == myColor);
+            int effectiveCPenalty = wedgeForming ? cPenalty / 2 : cPenalty;
+
+            if (c1 == myColor) score -= effectiveCPenalty;
+            else if (c1 == oppColor) score += effectiveCPenalty;
+
+            if (c2 == myColor) score -= effectiveCPenalty;
+            else if (c2 == oppColor) score += effectiveCPenalty;
+        }
+    }
+
+    return score;
+}
+
+// ===================================================================
+// PARITY EVALUATION
+// ===================================================================
+int AIPlayer::EvaluateParity(const Board& board, int emptySquares, int pieceCount) {
+    if (pieceCount < 48 || pieceCount >= 56) return 0;
+
+    // Count empty squares in different regions
+    int corners = 0, edges = 0, interior = 0;
+
+    for (int x = 0; x < 8; x++) {
+        for (int y = 0; y < 8; y++) {
+            if (board.boardState[x][y] != BoardValue::EMPTY) continue;
+
+            bool isCorner = (x == 0 || x == 7) && (y == 0 || y == 7);
+            bool isEdge = (x == 0 || x == 7 || y == 0 || y == 7);
+
+            if (isCorner) corners++;
+            else if (isEdge) edges++;
+            else interior++;
+        }
+    }
+
+    int score = 0;
+
+    // Odd parity in interior is advantageous (last move advantage)
+    if (interior % 2 == 1) score += 15;
+    else score -= 15;
+
+    // Edge parity matters too
+    if (edges % 2 == 1) score += 10;
+    else score -= 10;
+
+    return score;
+}
+
+// ===================================================================
+// MAIN EVALUATION FUNCTION
+// ===================================================================
 int AIPlayer::EvaluateBoard(const Board& board) {
     BoardValue opponent = board.OpponentColor(playerColor);
     int score = 0;
 
-    // Count pieces to determine game phase
-    int pieceCount = 0;
-    int myDiscs = 0, oppDiscs = 0;
+    // Count pieces and determine phase
+    int myDiscs = 0, oppDiscs = 0, emptySquares = 0;
     for (int x = 0; x < 8; x++) {
         for (int y = 0; y < 8; y++) {
-            if (board.boardState[x][y] == playerColor) {
-                myDiscs++;
-                pieceCount++;
-            }
-            else if (board.boardState[x][y] == opponent) {
-                oppDiscs++;
-                pieceCount++;
-            }
+            BoardValue cell = board.boardState[x][y];
+            if (cell == playerColor) myDiscs++;
+            else if (cell == opponent) oppDiscs++;
+            else emptySquares++;
         }
     }
 
-    // ENDGAME: Only disc count matters
-    if (pieceCount >= 54) {
-        return (myDiscs - oppDiscs) * 100;
+    int pieceCount = myDiscs + oppDiscs;
+
+    // === ENDGAME: Pure disc count ===
+    if (emptySquares <= 10) {
+        return (myDiscs - oppDiscs) * 1000;
     }
 
-    // === OPENING/MIDGAME ===
+    // === CORNER EVALUATION ===
+    score += EvaluateCorners(board, playerColor, opponent, pieceCount);
 
-    // 1. CORNERS - Most important (can never be flipped)
-    int cornerScore = 0;
-    int corners[4][2] = { {0,0}, {0,7}, {7,0}, {7,7} };
-    for (auto& c : corners) {
-        if (board.boardState[c[0]][c[1]] == playerColor)
-            cornerScore += 100;
-        else if (board.boardState[c[0]][c[1]] == opponent)
-            cornerScore -= 100;
-    }
-    score += cornerScore;
-
-    // 2. AVOID X-SQUARES and C-SQUARES (gift corners to opponent!)
-    auto penalizeNearCorner = [&](int cx, int cy, const std::vector<std::pair<int, int>>& dangerSquares) {
-        if (board.boardState[cx][cy] == BoardValue::EMPTY) {
-            for (auto& sq : dangerSquares) {
-                if (board.boardState[sq.first][sq.second] == playerColor)
-                    score -= 50;
-                else if (board.boardState[sq.first][sq.second] == opponent)
-                    score += 50;
-            }
-        }
-        };
-
-    penalizeNearCorner(0, 0, { {0,1}, {1,0}, {1,1} });
-    penalizeNearCorner(0, 7, { {0,6}, {1,7}, {1,6} });
-    penalizeNearCorner(7, 0, { {6,0}, {7,1}, {6,1} });
-    penalizeNearCorner(7, 7, { {6,7}, {7,6}, {6,6} });
-
-    // 3. MOBILITY - Having more moves is crucial
-    int myMoves = GetValidMoves(board, playerColor).size();
-    int oppMoves = GetValidMoves(board, opponent).size();
-
-    // Early game: mobility is VERY important
+    // === PIECE-SQUARE TABLES (early/mid game) ===
     if (pieceCount < 40) {
-        score += (myMoves - oppMoves) * 10;
-    }
-    else {
-        score += (myMoves - oppMoves) * 5;
-    }
-
-    // 4. EDGE STABILITY
-    int edgeScore = 0;
-
-    auto isEdgeStable = [&](int x, int y) -> bool {
-        if (x == 0) {
-            if ((y == 0) || (y == 7)) return true;
-            if (board.boardState[0][0] == board.boardState[x][y]) return true;
-            if (board.boardState[0][7] == board.boardState[x][y]) return true;
-        }
-        if (x == 7) {
-            if ((y == 0) || (y == 7)) return true;
-            if (board.boardState[7][0] == board.boardState[x][y]) return true;
-            if (board.boardState[7][7] == board.boardState[x][y]) return true;
-        }
-        if (y == 0) {
-            if (board.boardState[0][0] == board.boardState[x][y]) return true;
-            if (board.boardState[7][0] == board.boardState[x][y]) return true;
-        }
-        if (y == 7) {
-            if (board.boardState[0][7] == board.boardState[x][y]) return true;
-            if (board.boardState[7][7] == board.boardState[x][y]) return true;
-        }
-        return false;
-        };
-
-    for (int i = 2; i < 6; i++) {
-        if (board.boardState[0][i] == playerColor && isEdgeStable(0, i)) edgeScore += 10;
-        else if (board.boardState[0][i] == opponent && isEdgeStable(0, i)) edgeScore -= 10;
-
-        if (board.boardState[7][i] == playerColor && isEdgeStable(7, i)) edgeScore += 10;
-        else if (board.boardState[7][i] == opponent && isEdgeStable(7, i)) edgeScore -= 10;
-
-        if (board.boardState[i][0] == playerColor && isEdgeStable(i, 0)) edgeScore += 10;
-        else if (board.boardState[i][0] == opponent && isEdgeStable(i, 0)) edgeScore -= 10;
-
-        if (board.boardState[i][7] == playerColor && isEdgeStable(i, 7)) edgeScore += 10;
-        else if (board.boardState[i][7] == opponent && isEdgeStable(i, 7)) edgeScore -= 10;
-    }
-    score += edgeScore;
-
-    // 5. PARITY (who gets the last move)
-    if (pieceCount >= 45 && pieceCount < 54) {
-        int emptyCount = 64 - pieceCount;
-        if (emptyCount % 2 == 0) {
-            score += 5;
-        }
-        else {
-            score -= 5;
-        }
-    }
-
-    // 6. FRONTIER DISCS
-    int myFrontier = 0, oppFrontier = 0;
-    for (int x = 0; x < 8; x++) {
-        for (int y = 0; y < 8; y++) {
-            if (board.boardState[x][y] == BoardValue::EMPTY) continue;
-
-            bool isFrontier = false;
-            for (auto& dir : directions) {
-                int nx = x + dir[0], ny = y + dir[1];
-                if (nx >= 0 && nx < 8 && ny >= 0 && ny < 8 &&
-                    board.boardState[nx][ny] == BoardValue::EMPTY) {
-                    isFrontier = true;
-                    break;
+        for (int x = 0; x < 8; x++) {
+            for (int y = 0; y < 8; y++) {
+                if (board.boardState[x][y] == playerColor) {
+                    score += tileWeights[x][y];
+                }
+                else if (board.boardState[x][y] == opponent) {
+                    score -= tileWeights[x][y];
                 }
             }
-
-            if (isFrontier) {
-                if (board.boardState[x][y] == playerColor) myFrontier++;
-                else oppFrontier++;
-            }
         }
     }
-    // Fewer frontier discs is better
-    if (pieceCount < 40) {
-        score -= (myFrontier - oppFrontier) * 3;
+
+    // === MOBILITY ===
+    int myMoves = CountMoves(board, playerColor);
+    int oppMoves = CountMoves(board, opponent);
+
+    int mobilityWeight;
+    if (pieceCount < 20)      mobilityWeight = 25;
+    else if (pieceCount < 35) mobilityWeight = 18;
+    else if (pieceCount < 50) mobilityWeight = 10;
+    else                      mobilityWeight = 5;
+
+    score += (myMoves - oppMoves) * mobilityWeight;
+
+    // No-move bonus/penalty
+    if (oppMoves == 0 && myMoves > 0) score += 150;
+    else if (myMoves == 0 && oppMoves > 0) score -= 150;
+
+    // === POTENTIAL MOBILITY (frontier analysis) ===
+    if (pieceCount < 48) {
+        int myPotential = 0, oppPotential = 0;
+
+        for (int x = 0; x < 8; x++) {
+            for (int y = 0; y < 8; y++) {
+                if (board.boardState[x][y] != BoardValue::EMPTY) continue;
+
+                bool adjToMe = false, adjToOpp = false;
+                for (const auto& dir : directions) {
+                    int nx = x + dir[0], ny = y + dir[1];
+                    if (nx >= 0 && nx < 8 && ny >= 0 && ny < 8) {
+                        if (board.boardState[nx][ny] == playerColor)
+                            adjToMe = true;
+                        else if (board.boardState[nx][ny] == opponent)
+                            adjToOpp = true;
+                    }
+                }
+
+                if (adjToOpp) myPotential++;
+                if (adjToMe) oppPotential++;
+            }
+        }
+
+        int potentialWeight = pieceCount < 30 ? 5 : 3;
+        score += (myPotential - oppPotential) * potentialWeight;
+    }
+
+    // === STABLE DISCS ===
+    if (pieceCount >= 20) {
+        int myStable = CountStableDiscs(board, playerColor);
+        int oppStable = CountStableDiscs(board, opponent);
+
+        int stableWeight;
+        if (pieceCount < 30)      stableWeight = 10;
+        else if (pieceCount < 40) stableWeight = 15;
+        else if (pieceCount < 50) stableWeight = 22;
+        else                      stableWeight = 30;
+
+        score += (myStable - oppStable) * stableWeight;
+    }
+
+    // === PARITY ===
+    if (pieceCount >= 48) {
+        score += EvaluateParity(board, emptySquares, pieceCount);
+    }
+
+    // === FRONTIER DISCS (minimize exposure) ===
+    if (pieceCount < 45) {
+        int myFrontier = 0, oppFrontier = 0;
+
+        for (int x = 0; x < 8; x++) {
+            for (int y = 0; y < 8; y++) {
+                BoardValue cell = board.boardState[x][y];
+                if (cell == BoardValue::EMPTY) continue;
+
+                bool isFrontier = false;
+                for (const auto& dir : directions) {
+                    int nx = x + dir[0], ny = y + dir[1];
+                    if (nx >= 0 && nx < 8 && ny >= 0 && ny < 8 &&
+                        board.boardState[nx][ny] == BoardValue::EMPTY) {
+                        isFrontier = true;
+                        break;
+                    }
+                }
+
+                if (isFrontier) {
+                    if (cell == playerColor) myFrontier++;
+                    else oppFrontier++;
+                }
+            }
+        }
+
+        int frontierWeight = pieceCount < 25 ? 7 : 5;
+        score -= (myFrontier - oppFrontier) * frontierWeight;
+    }
+
+    // === EDGE CONTROL ===
+    if (pieceCount >= 25 && pieceCount < 50) {
+        int myEdges = 0, oppEdges = 0;
+
+        for (int i = 1; i < 7; i++) {
+            // Exclude corners (already counted)
+            if (board.boardState[0][i] == playerColor) myEdges++;
+            else if (board.boardState[0][i] == opponent) oppEdges++;
+
+            if (board.boardState[7][i] == playerColor) myEdges++;
+            else if (board.boardState[7][i] == opponent) oppEdges++;
+
+            if (board.boardState[i][0] == playerColor) myEdges++;
+            else if (board.boardState[i][0] == opponent) oppEdges++;
+
+            if (board.boardState[i][7] == playerColor) myEdges++;
+            else if (board.boardState[i][7] == opponent) oppEdges++;
+        }
+
+        score += (myEdges - oppEdges) * 12;
+    }
+
+    // === DISC COUNT (late game focus) ===
+    if (pieceCount >= 45 && emptySquares > 10) {
+        score += (myDiscs - oppDiscs) * 8;
     }
 
     return score;

@@ -26,7 +26,15 @@ public:
 	// minimax
 	int GetTurnMultiplier(BoardValue currentTurn);
 	int CountStableDiscs(const Board& board, BoardValue color);
+	int CountMoves(const Board& board, BoardValue color);
+	int EvaluateCorners(const Board& board, BoardValue myColor, BoardValue oppColor, int pieceCount);
+	int EvaluateParity(const Board& board, int emptySquares, int pieceCount);
 	int EvaluateBoard(const Board& board);
+
+	struct MobilityCache {
+		int myMoves = -1;
+		int oppMoves = -1;
+	};
 
 	std::vector<std::pair<int, int>> OrderMoves(const Board& board, const std::vector<std::pair<int, int>>& moves, BoardValue color);
 

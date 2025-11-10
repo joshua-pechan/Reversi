@@ -142,6 +142,13 @@ void Board::reset() {
     boardState[4][4] = BoardValue::WHITE;
     boardState[3][4] = BoardValue::BLACK;
     boardState[4][3] = BoardValue::BLACK;
+
+    // Reset hash to match initial board state
+    currentHash = 0;
+    currentHash ^= zobristTable[3][3][1];
+    currentHash ^= zobristTable[4][4][1];
+    currentHash ^= zobristTable[3][4][0];
+    currentHash ^= zobristTable[4][3][0];
 }
 
 void Board::LoadResources(HINSTANCE hInstance, LPCWSTR backgroundID, LPCWSTR numberedBackgroundID) {

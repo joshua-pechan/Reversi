@@ -177,6 +177,9 @@ void MainWindow::GameOver() {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
         InvalidateRect(hWnd, NULL, TRUE);
+        UpdateWindow(hWnd);
+
+        TriggerAIMove();
     } else {
         PostQuitMessage(0);
     }
@@ -394,11 +397,8 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                     if (player2.HasValidMove(board)) {
                         TriggerAIMove();
                     }
-                    else {
-                        if (player1.HasValidMove(board)) {
-                            player1Turn = true;
-                        }
-                        InvalidateRect(hWnd, NULL, TRUE);
+                    else if (player1.HasValidMove(board)) {
+                        player1Turn = true;
                     }
                 }
 
@@ -423,16 +423,14 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                     if (!newPlayer.HasValidMove(board)) {
                         player1Turn = !player1Turn;
                     }
+
+                    InvalidateRect(hWnd, NULL, FALSE);
+                    UpdateWindow(hWnd);
                 }
-                else {
-                    if (!currentPlayer.HasValidMove(board)) {
-                        player1Turn = !player1Turn;
-                    }
+                else if (!currentPlayer.HasValidMove(board)) {
+                    player1Turn = !player1Turn;
                 }
             }
-
-            InvalidateRect(hWnd, NULL, TRUE);
-            UpdateWindow(hWnd);
             break;
         }
 
