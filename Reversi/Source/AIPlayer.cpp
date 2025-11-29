@@ -566,24 +566,13 @@ int AIPlayer::Minimax(Board& board, int depth, int alpha, int beta, BoardValue c
         return 0;
     }
 
-    size_t hash = board.currentHash;
-    int alphaOrig = alpha;
-
-    // Check TT
-    if (transpositionTable.count(hash)) {
-        TTEntry& entry = transpositionTable[hash];
-        if (entry.depth >= depth) {
-            if (entry.flag == 0) return entry.score;
-            if (entry.flag == 1) alpha = std::max(alpha, entry.score);
-            if (entry.flag == 2) beta = std::min(beta, entry.score);
-            if (alpha >= beta) return entry.score;
-        }
-    }
-
+    // Early termination checks BEFORE TT lookup
     std::vector<std::pair<int, int>> validMoves = GetValidMoves(board, currentTurn);
     BoardValue nextTurn = board.OpponentColor(currentTurn);
 
-    if (depth == 0) return GetTurnMultiplier(currentTurn) * EvaluateBoard(board);
+    if (depth == 0) {
+        return GetTurnMultiplier(currentTurn) * EvaluateBoard(board);
+    }
 
     if (validMoves.empty()) {
         std::vector<std::pair<int, int>> nextValidMoves = GetValidMoves(board, nextTurn);
@@ -593,12 +582,37 @@ int AIPlayer::Minimax(Board& board, int depth, int alpha, int beta, BoardValue c
         return -Minimax(board, depth - 1, -beta, -alpha, nextTurn, forceStop);
     }
 
+    // TT lookup
+    size_t hash = board.currentHash;
+    if (currentTurn == BoardValue::WHITE) {
+        hash ^= 0x9E3779B97F4A7C15ULL;
+    }
+
+    int alphaOrig = alpha;
+    if (transpositionTable.count(hash)) {
+        TTEntry& entry = transpositionTable[hash];
+        if (entry.depth >= depth) {
+            if (entry.flag == 0) {
+                return entry.score;
+            }
+            if (entry.flag == 1) {
+                alpha = std::max(alpha, entry.score);
+            }
+            if (entry.flag == 2) {
+                beta = std::min(beta, entry.score);
+            }
+            if (alpha >= beta) {
+                return entry.score;
+            }
+        }
+    }
+
     int bestScore = -INF;
 
-    // --- Move ordering ---
+    // Move ordering
     std::vector<std::pair<int, int>> orderedMoves = OrderMoves(board, validMoves, currentTurn);
 
-    // --- Minimax loop ---
+    // Minimax loop
     for (const auto& move : orderedMoves) {
         if (forceStop && forceStop->load()) {
             return bestScore > -INF ? bestScore : 0;
@@ -613,17 +627,26 @@ int AIPlayer::Minimax(Board& board, int depth, int alpha, int beta, BoardValue c
 
         bestScore = std::max(bestScore, score);
         alpha = std::max(alpha, score);
-        if (alpha >= beta) break;
+
+        if (alpha >= beta) {
+            break;
+        }
     }
 
-    // --- Store in TT ---
+    // Store in TT with CURRENT hash
     TTEntry ttEntry;
     ttEntry.depth = depth;
     ttEntry.score = bestScore;
 
-    if (bestScore <= alphaOrig) ttEntry.flag = 2;
-    else if (bestScore >= beta) ttEntry.flag = 1;
-    else ttEntry.flag = 0;
+    if (bestScore <= alphaOrig) {
+        ttEntry.flag = 2;
+    }
+    else if (bestScore >= beta) {
+        ttEntry.flag = 1;
+    }
+    else {
+        ttEntry.flag = 0;
+    }
 
     transpositionTable[hash] = ttEntry;
 

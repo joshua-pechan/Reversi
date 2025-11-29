@@ -87,31 +87,47 @@ void MainWindow::RunTimerThread() {
 
 // Trigger AI move if it's AI's turn in single player mode
 void MainWindow::TriggerAIMove() {
-    if (singlePlayer && !player1Turn && player2.HasValidMove(board)) {
+    if (singlePlayer && !player1Turn && player2.HasValidMove(board) && !aiMoveInProgress) {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-        // Start timer thread
+        // Start AI computation
+        aiMoveInProgress = true;
         aiThinking = true;
         aiTimeRemaining = AI_TIME_LIMIT;
         forceAIStop = false;
 
         timerThread = std::thread(&MainWindow::RunTimerThread, this);
 
-        // Run AI in separate thread
-        MoveResult aiResult = player2.move(board, hWnd, difficulty, &forceAIStop);
+        // Launch AI in background - THIS DOESN'T BLOCK!
+        aiFuture = std::async(std::launch::async, [this]() {
+            return player2.move(board, hWnd, difficulty, &forceAIStop);
+            });
+
+        // Set a timer to check when AI is done
+        SetTimer(hWnd, 2, 50, NULL);
+    }
+}
+
+void MainWindow::CheckAIComplete() {
+    if (!aiMoveInProgress) return;
+
+    // Check if AI is done (non-blocking check)
+    if (aiFuture.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+        // AI finished! Get the result
+        MoveResult aiResult = aiFuture.get();
 
         // Stop timer
         aiThinking = false;
+        aiMoveInProgress = false;
 
-        // Wait for timer thread to finish
         if (timerThread.joinable()) {
             timerThread.join();
         }
 
-        // Reset timer display
+        KillTimer(hWnd, 2); // Stop checking
         aiTimeRemaining = AI_TIME_LIMIT;
 
-        // Process AI move on main thread
+        // Process AI move
         if (aiResult.valid) {
             MoveRecord aiRecord;
             aiRecord.row = aiResult.row;
@@ -241,6 +257,8 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
                     aiTimeRemaining = 0;
                 }
                 InvalidateRect(hWnd, NULL, TRUE);
+            } else if (wParam == 2) {
+                CheckAIComplete();
             }
             return 0;
 
@@ -435,10 +453,18 @@ LRESULT MainWindow::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
         }
 
         case WM_DESTROY:
+            forceAIStop = true;
             aiThinking = false;
+
+            // Wait for AI thread if running
+            if (aiMoveInProgress && aiFuture.valid()) {
+                aiFuture.wait();
+            }
+
             if (timerThread.joinable()) {
                 timerThread.join();
             }
+
             PostQuitMessage(0);
             break;
 

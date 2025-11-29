@@ -122,12 +122,15 @@ std::vector<std::pair<int, int>> Board::ApplyMove(int row, int col, BoardValue c
 }
 
 void Board::UndoMove(int row, int col, BoardValue color, const std::vector<std::pair<int, int>>& flipped) {
+    // Remove the placed piece
     if (row >= 0 && row < MATRIX_SIZE && col >= 0 && col < MATRIX_SIZE) {
         boardState[row][col] = BoardValue::EMPTY;
         UpdateHash(row, col, color, BoardValue::EMPTY);
     }
 
     BoardValue opp = OpponentColor(color);
+
+    // Flip pieces back to opponent color
     for (const auto& p : flipped) {
         if (p.first >= 0 && p.first < MATRIX_SIZE && p.second >= 0 && p.second < MATRIX_SIZE) {
             boardState[p.first][p.second] = opp;

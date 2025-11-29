@@ -1,4 +1,4 @@
-﻿Build started 11/10/2025 1:48:16 PM.
+﻿Build started 11/20/2025 4:09:41 PM.
 Logging verbosity is set to: Normal.     1>Project "C:\Users\joshp\OneDrive\Programming\C++\Reversi\Reversi\Reversi.vcxproj" on node 2 (Build target(s)).
      1>PrepareForBuild:
          Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
@@ -6,8 +6,10 @@ Logging verbosity is set to: Normal.     1>Project "C:\Users\joshp\OneDrive\Prog
          Creating "C:\Users\joshp\OneDrive\Programming\C++\Reversi\\Reversi\Intermediate\Debug\Reversi.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
          Touching "C:\Users\joshp\OneDrive\Programming\C++\Reversi\\Reversi\Intermediate\Debug\Reversi.tlog\unsuccessfulbuild".
        ClCompile:
-         C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.41.34120\bin\HostX64\x64\CL.exe /c /ZI /JMC /nologo /W3 /WX- /diagnostics:column /sdl /Od /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++20 /permissive- /Fo"C:\Users\joshp\OneDrive\Programming\C++\Reversi\\Reversi\Intermediate\Debug\\" /Fd"C:\Users\joshp\OneDrive\Programming\C++\Reversi\\Reversi\Intermediate\Debug\vc143.pdb" /external:W3 /Gd /TP /FC /errorReport:prompt Source\Board.cpp Source\WinMain.cpp
+         C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.41.34120\bin\HostX64\x64\CL.exe /c /ZI /JMC /nologo /W3 /WX- /diagnostics:column /sdl /Od /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /std:c++20 /permissive- /Fo"C:\Users\joshp\OneDrive\Programming\C++\Reversi\\Reversi\Intermediate\Debug\\" /Fd"C:\Users\joshp\OneDrive\Programming\C++\Reversi\\Reversi\Intermediate\Debug\vc143.pdb" /external:W3 /Gd /TP /FC /errorReport:prompt Source\AIPlayer.cpp Source\Board.cpp Source\Player.cpp Source\WinMain.cpp
+         AIPlayer.cpp
          Board.cpp
+         Player.cpp
          WinMain.cpp
          Generating Code...
        ResourceCompile:
@@ -28,4 +30,4 @@ Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:07.85
+Time Elapsed 00:00:42.50

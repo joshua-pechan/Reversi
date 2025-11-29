@@ -57,7 +57,11 @@ private:
 
     void RunTimerThread();
 
+    std::future<MoveResult> aiFuture;
+    bool aiMoveInProgress = false;
+
     void TriggerAIMove();
+    void CheckAIComplete();
     void Undo();
 };
 

@@ -31,14 +31,13 @@ constexpr int INF = std::numeric_limits<int>::max();
 enum class BoardValue { EMPTY, BLACK, WHITE };
 enum class Difficulty { HEURISTIC, MINIMAX };
 
-// directions for move checking: N, NE, E, SE, S, SW, W, NW
 inline const int directions[8][2] = {
     {-1,  1}, { 1,  1}, { 0,  1},
     {-1,  0},           { 1,  0},
     {-1, -1}, { 0, -1}, { 1, -1},
 };
 
-constexpr int DEPTH = 64;
+constexpr int DEPTH = 20;
 static constexpr int AI_TIME_LIMIT = 30;
 
 inline const int tileWeights[8][8] = {
